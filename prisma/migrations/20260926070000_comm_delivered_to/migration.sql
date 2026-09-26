@@ -1,0 +1,11 @@
+-- AlterTable
+--
+-- `deliveredTo` records where a message actually went, which differs from
+-- `recipientEmail` only while `EMAIL_REDIRECT_TO` is set. That env var routes
+-- all outbound mail to the organiser's own inbox, because Resend will not send
+-- from an unverified domain and no domain is verified yet.
+--
+-- Storing both means the communication log still answers "which student was
+-- this for?" even when every message physically lands in one inbox — so a
+-- failed or redirected send is never mistaken for a delivered one.
+ALTER TABLE "communication_logs" ADD COLUMN "deliveredTo" TEXT;

@@ -1,0 +1,487 @@
+// AGENTX 2026 — internal operations platform
+// Docs: https://pris.ly/d/prisma-schema
+// Apply with: npm run db:migrate   ·   Reset: npm run db:reset
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────── enums ────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN // core / executive team — full access
+  TEAM_LEAD // scoped to one vertical module
+  VOLUNTEER // check-in scanner only
+  JUDGE // own scoring portal, assigned teams only
+  MENTOR // checkpoint feedback, assigned teams only
+}
+
+enum Vertical {
+  SPONSORSHIP
+  MARKETING
+  TECHNICAL
+  PROBLEM_STATEMENTS
+  MENTOR_JUDGE_RELATIONS
+  LOGISTICS
+  MEDIA
+  VOLUNTEER_SUPPORT
+}
+
+enum TeamStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  DISQUALIFIED
+  SUBMITTED
+}
+
+enum ParticipantRole {
+  LEADER
+  MEMBER
+}
+
+enum ScreeningStatus {
+  PENDING
+  ADVANCE
+  NOT_ADVANCING
+}
+
+enum CheckpointName {
+  REGISTRATION
+  ROUND_1
+  ROUND_2
+  MIDNIGHT
+  SUBMISSION
+}
+
+enum PanelKind {
+  JUDGE
+  MENTOR
+}
+
+enum SponsorTier {
+  TITLE
+  GOLD
+  SILVER
+  BRONZE
+  TECHNOLOGY_PARTNER
+  PRIZE_IN_KIND
+}
+
+enum SponsorStatus {
+  LEAD
+  CONTACTED
+  NEGOTIATING
+  CONFIRMED
+  PAID
+}
+
+enum VolunteerShift {
+  MORNING
+  AFTERNOON
+  NIGHT
+  FULL_DAY
+}
+
+enum Station {
+  REGISTRATION_DESK
+  MENTOR_DESK
+  SUBMISSION_DESK
+  HELP_DESK
+}
+
+enum CommType {
+  CONFIRMATION
+  APPROVAL
+  WORKSHOP_REMINDER
+  PRE_EVENT_CHECKLIST
+  CHECKPOINT_REMINDER
+  FINALIST_ANNOUNCEMENT
+  RESULTS_CERTIFICATE
+  CUSTOM
+}
+
+enum CommStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  OPENED
+  FAILED
+  BOUNCED
+}
+
+enum AnalyticsEventType {
+  PAGE_VIEW
+  FORM_START
+  FORM_STEP
+  FORM_ABANDON
+  FORM_COMPLETE
+}
+
+// ─────────────────────────────── people ───────────────────────────────
+
+/// Staff account. Judges and mentors get their own PanelMember record for
+/// assignments/scoring, plus a User row when they need portal access.
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String? // credentials login; null for OAuth-only accounts
+  role         Role      @default(TEAM_LEAD)
+  vertical     Vertical? // required when role = TEAM_LEAD
+  phone        String?
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  volunteers      Volunteer[]
+  ownedSponsors   Sponsor[]          @relation("SponsorOwner")
+  checkpointScans CheckpointLog[]
+  auditLogs       AuditLog[]
+  sentComms       CommunicationLog[]
+  screenings      Submission[]       @relation("ScreenedBy")
+  panelMember     PanelMember?
+
+  @@index([role])
+  @@map("users")
+}
+
+/// A judge or mentor. `kind` decides which portal they get.
+model PanelMember {
+  id        String    @id @default(cuid())
+  kind      PanelKind
+  name      String
+  email     String    @unique
+  org       String? // organisation / company
+  title     String? // designation
+  phone     String?
+  confirmed Boolean   @default(false) // RSVP'd for event day
+  bio       String?
+  active    Boolean   @default(true)
+  /// Set when this person also has a staff login for their portal.
+  userId    String?   @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  assignments Assignment[]
+  scores      Score[]
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("panel_members")
+}
+
+/// Which team / track a judge or mentor is responsible for.
+model Assignment {
+  id        String   @id @default(cuid())
+  panelId   String
+  teamId    String?
+  trackId   String?
+  /// Feedback the mentor records against this team at the checkpoints.
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  panel PanelMember @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  team  Team?       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  track Track?      @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([panelId, teamId, trackId])
+  @@index([panelId])
+  @@map("assignments")
+}
+
+model Volunteer {
+  id        String         @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  shift     VolunteerShift @default(MORNING)
+  station   Station        @default(REGISTRATION_DESK)
+  userId    String? // optional portal login
+  createdAt DateTime       @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([station, shift])
+  @@map("volunteers")
+}
+
+// ────────────────────────── event configuration ───────────────────────
+
+model Track {
+  id                   String   @id @default(cuid())
+  slug                 String   @unique
+  name                 String
+  description          String
+  requirementChecklist String[] @default([])
+  capacity             Int? // null = uncapped
+  sortOrder            Int      @default(0)
+  active               Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  teams       Team[]
+  assignments Assignment[]
+
+  @@index([active, sortOrder])
+  @@map("tracks")
+}
+
+model Team {
+  id                 String     @id @default(cuid())
+  /// Short human-facing code emailed to the team, e.g. "AGX-4F2K".
+  code               String     @unique
+  /// Set when this row was imported from the marketing site's `public.teams`
+  /// by scripts/sync-registrations.ts, holding that table's UUID. Makes the
+  /// import idempotent and records where the team came from.
+  sourceRef          String?    @unique
+  name               String
+  trackId            String
+  status             TeamStatus @default(PENDING)
+  college            String
+  city               String     @default("")
+  contactName        String     @default("")
+  contactEmail       String
+  contactPhone       String     @default("")
+  projectIdea        String     @default("")
+  /// Secret embedded in the team's check-in QR code.
+  qrToken            String     @unique
+  disqualifiedReason String?
+  submittedAt        DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  track        Track              @relation(fields: [trackId], references: [id], onDelete: Restrict)
+  participants Participant[]
+  submission   Submission?
+  scores       Score[]
+  checkpoints  CheckpointLog[]
+  assignments  Assignment[]
+  comms        CommunicationLog[]
+  analytics    AnalyticsEvent[]
+
+  @@index([status])
+  @@index([trackId, status])
+  @@index([college])
+  @@index([createdAt])
+  @@map("teams")
+}
+
+model Participant {
+  id        String          @id @default(cuid())
+  name      String
+  email     String          @unique
+  phone     String          @default("")
+  college   String
+  year      String          @default("")
+  role      ParticipantRole @default(MEMBER)
+  teamId    String?
+  createdAt DateTime        @default(now())
+
+  team Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@map("participants")
+}
+
+/// Lets a student save a half-finished registration and resume it.
+model RegistrationDraft {
+  id          String   @id @default(cuid())
+  resumeToken String   @unique
+  email       String
+  step        Int      @default(0)
+  payload     Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([email])
+  @@map("registration_drafts")
+}
+
+model Submission {
+  id                     String          @id @default(cuid())
+  teamId                 String          @unique
+  summary                String          @default("")
+  githubRepoUrl          String
+  demoVideoUrl           String
+  architectureDiagramUrl String          @default("")
+  apiDeclaration         String          @default("")
+  screeningStatus        ScreeningStatus @default(PENDING)
+  screeningNotes         String          @default("")
+  screenedById           String?
+  screenedAt             DateTime?
+  submittedAt            DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  lockedAt               DateTime? // set when the deadline passes
+
+  team       Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  screenedBy User? @relation("ScreenedBy", fields: [screenedById], references: [id], onDelete: SetNull)
+
+  @@index([screeningStatus])
+  @@map("submissions")
+}
+
+/// One row per judge per team. Criterion scores are 0–10; the weighted
+/// total (25/20/20/15/10/10) is recomputed on every write.
+model Score {
+  id                      String   @id @default(cuid())
+  judgeId                 String
+  teamId                  String
+  agenticCapability       Int
+  innovation              Int
+  technicalImplementation Int
+  problemRelevance        Int
+  userExperience          Int
+  demoPresentation        Int
+  totalWeightedScore      Float
+  comments                String   @default("")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  judge PanelMember @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  team  Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([judgeId, teamId])
+  @@index([teamId])
+  @@map("scores")
+}
+
+// ─────────────────────────── event-day ops ────────────────────────────
+
+model CheckpointLog {
+  id          String         @id @default(cuid())
+  teamId      String
+  checkpoint  CheckpointName
+  note        String         @default("")
+  notedBy     String         @default("") // display name of the person who logged it
+  scannedById String?
+  createdAt   DateTime       @default(now())
+
+  team      Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  scannedBy User? @relation(fields: [scannedById], references: [id], onDelete: SetNull)
+
+  @@index([teamId, checkpoint])
+  @@index([createdAt])
+  @@map("checkpoint_logs")
+}
+
+// ────────────────────────── communications ────────────────────────────
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  type      CommType
+  subject   String
+  /// Supports {{teamName}}, {{track}}, {{teamCode}}, {{leaderName}}, {{eventName}}, {{deadline}}
+  body      String
+  active    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+model CommunicationLog {
+  id             String     @id @default(cuid())
+  type           CommType
+  channel        String     @default("email")
+  status         CommStatus @default(QUEUED)
+  recipientEmail String
+  recipientName  String     @default("")
+  teamId         String?
+  subject        String
+  body           String     @default("")
+  templateKey    String?
+  providerId     String?
+  error          String?
+  sentAt         DateTime?
+  openedAt       DateTime?
+  createdAt      DateTime   @default(now())
+
+  team     Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  sentBy   User?   @relation(fields: [sentById], references: [id], onDelete: SetNull)
+  sentById String?
+
+  @@index([status, type])
+  @@index([createdAt])
+  @@index([teamId])
+  @@map("communication_logs")
+}
+
+// ────────────────────────── sponsors & stakeholders ───────────────────
+
+model Sponsor {
+  id            String        @id @default(cuid())
+  name          String
+  tier          SponsorTier   @default(BRONZE)
+  status        SponsorStatus @default(LEAD)
+  contactPerson String        @default("")
+  contactEmail  String        @default("")
+  amount        Decimal?      @db.Decimal(12, 2)
+  currency      String        @default("INR")
+  ownerId       String?
+  notes         String        @default("")
+  confirmedAt   DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  owner User? @relation("SponsorOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@index([status, tier])
+  @@map("sponsors")
+}
+
+// ───────────────────────── platform-wide bookkeeping ──────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String   @default("")
+  action     String // e.g. "team.status.update", "score.submit"
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/// Lightweight funnel instrumentation for the public registration flow.
+model AnalyticsEvent {
+  id        String             @id @default(cuid())
+  type      AnalyticsEventType
+  path      String             @default("")
+  visitorId String             @default("")
+  teamId    String?
+  step      Int?
+  meta      Json               @default("{}")
+  createdAt DateTime           @default(now())
+
+  team Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([type, createdAt])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
+
+/// Editable key/value config — submission deadline, team cap, event name.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@map("settings")
+}
