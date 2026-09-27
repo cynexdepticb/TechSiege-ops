@@ -1,8 +1,8 @@
 /** Site-wide config, editable via env. Keep event facts in one place. */
 
 export const SITE = {
-  name: process.env.NEXT_PUBLIC_EVENT_NAME ?? "AGENTX 2026",
-  shortName: "AGENTX",
+  name: process.env.NEXT_PUBLIC_EVENT_NAME ?? "TechSiege",
+  shortName: "TechSiege",
   venue: "AIET, Mijar Campus — Auditorium",
   city: "Mangaluru",
   supportEmail: process.env.SUPPORT_EMAIL ?? "ops@agentx.dev",

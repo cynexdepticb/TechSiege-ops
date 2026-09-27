@@ -181,6 +181,8 @@ export const templateSchema = z.object({
     "CHECKPOINT_REMINDER",
     "FINALIST_ANNOUNCEMENT",
     "RESULTS_CERTIFICATE",
+    "PAYMENT_ACKNOWLEDGEMENT",
+    "TICKET_ISSUED",
     "CUSTOM",
   ]),
   subject: z.string().trim().min(3, "Write a subject line").max(200),
@@ -331,6 +333,8 @@ export const bulkSendSchema = z.object({
     "CHECKPOINT_REMINDER",
     "FINALIST_ANNOUNCEMENT",
     "RESULTS_CERTIFICATE",
+    "PAYMENT_ACKNOWLEDGEMENT",
+    "TICKET_ISSUED",
     "CUSTOM",
   ]),
   trackId: z.string().optional(),
@@ -344,4 +348,20 @@ export const settingSchema = z.object({
   key: z.string().trim().min(1).max(64),
   value: z.string().max(2000),
 });
+
+/* ─────────────────────────────── payment ────────────────────────────── */
+
+export const paymentSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("mark-paid"),
+    amountPaid: z.coerce.number().min(0).max(10_000_000).nullish(),
+    paymentRef: z.string().trim().max(120).optional(),
+  }),
+  z.object({
+    action: z.literal("send-ticket"),
+  }),
+  z.object({
+    action: z.literal("resend-tickets"),
+  }),
+]);
 

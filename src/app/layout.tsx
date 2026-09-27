@@ -7,10 +7,10 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swa
 
 export const metadata: Metadata = {
   title: {
-    default: "AGENTX 2026 — Operations",
-    template: "%s · AGENTX Ops",
+    default: "TechSiege — Operations",
+    template: "%s · TechSiege Ops",
   },
-  description: "Internal operations platform for AGENTX 2026.",
+  description: "Internal operations platform for TechSiege.",
   robots: { index: false, follow: false },
 };
 

@@ -7,6 +7,8 @@ export type AppSettings = {
   submissionDeadline: string;
   registrationOpen: boolean;
   maxTeams: number;
+  /** Entry fee per team in rupees, used to prefill the payment confirm form. */
+  entryFee: number;
 };
 
 const cache: { value: AppSettings | null; at: number } = { value: null, at: 0 };
@@ -24,6 +26,7 @@ export async function getSettings(): Promise<AppSettings> {
     submissionDeadline: map[SETTING_KEYS.submissionDeadline]!,
     registrationOpen: map[SETTING_KEYS.registrationOpen] === "true",
     maxTeams: Number(map[SETTING_KEYS.maxTeams] ?? 60),
+    entryFee: Number(map[SETTING_KEYS.entryFee] ?? DEFAULT_SETTINGS[SETTING_KEYS.entryFee] ?? 0),
   };
 
   cache.value = value;

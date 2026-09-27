@@ -18,12 +18,15 @@ import {
 } from "@/components/ui/table";
 import { TeamStatusFilter } from "@/components/teams/team-status-filter";
 import { RowDeleteButton } from "@/components/teams/row-delete-button";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { RowMarkPaid } from "@/components/teams/row-mark-paid";
+import { RowSendTicket } from "@/components/teams/row-send-ticket";
+import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import { TEAM_STATUS_LABEL, TEAM_STATUS_VARIANT } from "@/lib/authz-lite";
 import { SCREENING_LABEL } from "@/lib/labels";
+import { getSettings } from "@/lib/settings";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Prisma } from "@/generated/prisma/client";
-import { TeamStatus, ScreeningStatus } from "@/generated/prisma/enums";
+import { TeamStatus, ScreeningStatus, PaymentStatus } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Teams" };
 export const dynamic = "force-dynamic";
@@ -47,12 +50,15 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   const status = one(sp.status) as TeamStatus | undefined;
   const trackId = one(sp.trackId);
   const college = one(sp.college) ?? "";
+  const paidRaw = one(sp.paid);
+  const paid = paidRaw === "unpaid" || paidRaw === "paid" ? paidRaw : "";
   const page = Math.max(1, Number(one(sp.page) ?? 1) || 1);
 
   const where: Prisma.TeamWhereInput = {};
   if (status && Object.values(TeamStatus).includes(status)) where.status = status;
   if (trackId) where.trackId = trackId;
   if (college) where.college = { equals: college, mode: "insensitive" };
+  if (paid) where.paymentStatus = paid === "unpaid" ? PaymentStatus.UNPAID : PaymentStatus.PAID;
   if (q) {
     where.OR = [
       { name: { contains: q, mode: "insensitive" } },
@@ -63,7 +69,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     ];
   }
 
-  const [teams, total, allTotal, tracks, colleges] = await Promise.all([
+  const [teams, total, allTotal, tracks, colleges, settings] = await Promise.all([
     prisma.team.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -79,6 +85,9 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
         contactName: true,
         contactEmail: true,
         createdAt: true,
+        paymentStatus: true,
+        paidAt: true,
+        ticketSentAt: true,
         track: { select: { id: true, name: true } },
         // `scores` is fetched so the delete affordance can say up front that a
         // team is undeletable, matching what the DELETE route refuses on.
@@ -100,11 +109,12 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
       select: { college: true },
       orderBy: { college: "asc" },
     }),
+    getSettings(),
   ]);
 
   const pages = Math.max(1, Math.ceil(total / PER_PAGE));
   const canEdit = canWrite(actor, "teams");
-  const filtered = Boolean(q || status || trackId || college);
+  const filtered = Boolean(q || status || trackId || college || paid);
 
   /* `total` is filter-scoped, so it must never be presented as the number of
      registered teams — with a filter on that reads as "you have none", which
@@ -118,7 +128,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
 
   /* Preserve the active filters when paging or exporting. */
   const qs = new URLSearchParams();
-  for (const [k, v] of Object.entries({ q, status: status ?? "", trackId, college })) {
+  for (const [k, v] of Object.entries({ q, status: status ?? "", trackId, college, paid })) {
     if (v) qs.set(k, v);
   }
   const pageHref = (n: number) => {
@@ -144,7 +154,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
         <TeamStatusFilter
           tracks={tracks}
           colleges={colleges.map((c) => c.college)}
-          defaults={{ q, status: status ?? "", trackId: trackId ?? "", college }}
+          defaults={{ q, status: status ?? "", trackId: trackId ?? "", college, paid }}
         />
       </Suspense>
 
@@ -177,6 +187,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                       <TableHead>College</TableHead>
                       <TableHead>Size</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Fee</TableHead>
                       <TableHead>Screening</TableHead>
                       <TableHead>Registered</TableHead>
                       {canWriteTeams ? (
@@ -215,6 +226,28 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                             {TEAM_STATUS_LABEL[t.status]}
                           </Badge>
                         </TableCell>
+                        {/* Fee and ticket are separate facts: a team can have paid
+                            and still be waiting on its ticket, which is the state
+                            worth spotting before event day. */}
+                        <TableCell>
+                          <span className="flex flex-col items-start gap-1">
+                            <Badge
+                              variant={t.paymentStatus === "PAID" ? "success" : "muted"}
+                              title={
+                                t.paidAt
+                                  ? `Confirmed ${formatDateTime(t.paidAt)}`
+                                  : "Entry fee not confirmed yet"
+                              }
+                            >
+                              {t.paymentStatus === "PAID" ? "Paid" : "Unpaid"}
+                            </Badge>
+                            {t.paymentStatus === "PAID" && !t.ticketSentAt ? (
+                              <span className="text-[11px] text-amber-500">
+                                no ticket sent
+                              </span>
+                            ) : null}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           {t.submission ? (
                             <Badge variant={t.submission.screeningStatus === ScreeningStatus.ADVANCE ? "success" : t.submission.screeningStatus === ScreeningStatus.NOT_ADVANCING ? "destructive" : "muted"}>
@@ -229,19 +262,31 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                         </TableCell>
                         {canWriteTeams ? (
                           <TableCell className="text-right">
-                            <RowDeleteButton
-                              team={{ id: t.id, code: t.code, name: t.name }}
-                              memberCount={t._count.participants}
-                              blockers={[
-                                ...(t._count.checkpoints > 0
-                                  ? [`${t._count.checkpoints} check-in scan(s)`]
-                                  : []),
-                                ...(t._count.scores > 0
-                                  ? [`${t._count.scores} recorded score(s)`]
-                                  : []),
-                                ...(t.submission ? ["a submitted project"] : []),
-                              ]}
-                            />
+                            <div className="flex items-center justify-end gap-1">
+                              {t.paymentStatus !== "PAID" ? (
+                                <RowMarkPaid
+                                  team={{ id: t.id, code: t.code, name: t.name }}
+                                  defaultAmount={String(settings.entryFee)}
+                                />
+                              ) : !t.ticketSentAt ? (
+                                <RowSendTicket
+                                  team={{ id: t.id, code: t.code, name: t.name }}
+                                />
+                              ) : null}
+                              <RowDeleteButton
+                                team={{ id: t.id, code: t.code, name: t.name }}
+                                memberCount={t._count.participants}
+                                blockers={[
+                                  ...(t._count.checkpoints > 0
+                                    ? [`${t._count.checkpoints} check-in scan(s)`]
+                                    : []),
+                                  ...(t._count.scores > 0
+                                    ? [`${t._count.scores} recorded score(s)`]
+                                    : []),
+                                  ...(t.submission ? ["a submitted project"] : []),
+                                ]}
+                              />
+                            </div>
                           </TableCell>
                         ) : null}
                       </TableRow>

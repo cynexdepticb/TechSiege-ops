@@ -88,7 +88,7 @@ export function Sidebar({ sections, actor }: Props) {
         <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Open navigation">
           <Menu />
         </Button>
-        <span className="font-semibold tracking-tight">AGENTX Ops</span>
+        <span className="font-semibold tracking-tight">TechSiege Ops</span>
         <Badge variant="muted" className="ml-auto">
           {actor.roleLabel}
         </Badge>
@@ -99,7 +99,7 @@ export function Sidebar({ sections, actor }: Props) {
           <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} />
           <aside className="relative flex h-full w-72 max-w-[85vw] flex-col border-r border-border bg-card">
             <div className="flex h-14 items-center justify-between border-b border-border px-4">
-              <span className="font-semibold tracking-tight">AGENTX Ops</span>
+              <span className="font-semibold tracking-tight">TechSiege Ops</span>
               <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close navigation">
                 <X />
               </Button>
@@ -112,7 +112,7 @@ export function Sidebar({ sections, actor }: Props) {
 
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-card lg:flex">
         <div className="flex h-14 items-center gap-2 border-b border-border px-5">
-          <span className="font-semibold tracking-tight">AGENTX Ops</span>
+          <span className="font-semibold tracking-tight">TechSiege Ops</span>
           <Separator orientation="vertical" className="ml-1 h-4" />
           <span className="text-xs text-muted-foreground">2026</span>
         </div>

@@ -26,6 +26,18 @@ const PUBLIC_PATHS = [
   "/api/auth",
   "/api/register",
   "/api/analytics",
+  /*
+   * A team's own check-in ticket, at /ticket/<qrToken>.
+   *
+   * Public by necessity, not by convenience: the person holding the phone at the
+   * desk is a student who cannot be asked to log in to an organiser console. The
+   * qrToken in the path is the only credential, so it is the security boundary —
+   * it is 18 bytes of CSPRNG output from `makeToken`, never a guessable id, and
+   * the page behind it reveals only what the scanner needs (team name, code,
+   * track). Note this also makes every /ticket/* path public, so nothing
+   * organiser-only may be nested under that prefix.
+   */
+  "/ticket",
 ];
 
 function isPublic(pathname: string): boolean {

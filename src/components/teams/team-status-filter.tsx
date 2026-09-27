@@ -27,7 +27,7 @@ export function TeamStatusFilter({
 }: {
   tracks: { id: string; name: string }[];
   colleges: string[];
-  defaults: { q: string; status: string; trackId: string; college: string };
+  defaults: { q: string; status: string; trackId: string; college: string; paid: string };
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -67,7 +67,7 @@ export function TeamStatusFilter({
   };
 
   const hasFilters = Boolean(
-    defaults.q || defaults.status || defaults.trackId || defaults.college,
+    defaults.q || defaults.status || defaults.trackId || defaults.college || defaults.paid,
   );
 
   return (
@@ -131,6 +131,20 @@ export function TeamStatusFilter({
               {c}
             </SelectItem>
           ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={defaults.paid || "all"}
+        onValueChange={(v) => set("paid", v === "all" ? "" : v)}
+      >
+        <SelectTrigger className="sm:w-40" aria-label="Filter by entry fee">
+          <SelectValue placeholder="Fee" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All fees</SelectItem>
+          <SelectItem value="unpaid">Unpaid</SelectItem>
+          <SelectItem value="paid">Paid</SelectItem>
         </SelectContent>
       </Select>
 

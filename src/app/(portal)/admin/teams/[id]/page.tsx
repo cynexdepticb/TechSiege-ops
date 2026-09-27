@@ -10,14 +10,16 @@ import { PageHeader } from "@/components/ui/fields";
 import { Separator } from "@/components/ui/primitives";
 import { TeamControls } from "@/components/teams/team-controls";
 import { DeleteTeamButton } from "@/components/teams/delete-team-button";
+import { PaymentPanel } from "@/components/teams/payment-panel";
 import { formatDateTime } from "@/lib/utils";
 import { CHECKPOINT_LABEL, TEAM_STATUS_LABEL, TEAM_STATUS_VARIANT } from "@/lib/authz-lite";
 import { SCREENING_LABEL, SCREENING_VARIANT } from "@/lib/labels";
 import { CHECKPOINTS } from "@/lib/site";
 import { teamCheckinUrl } from "@/lib/registration";
 import { siteOrigin } from "@/lib/site";
+import { getSettings } from "@/lib/settings";
 import { QrBadge } from "@/components/teams/qr-badge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileDown } from "lucide-react";
 
 export const metadata: Metadata = { title: "Team" };
 export const dynamic = "force-dynamic";
@@ -46,11 +48,14 @@ export default async function TeamDetailPage({
   if (!team) notFound();
 
   const canEdit = canWrite(actor, "teams");
-  const tracks = await prisma.track.findMany({
-    where: { active: true },
-    select: { id: true, name: true },
-    orderBy: { sortOrder: "asc" },
-  });
+  const [settings, tracks] = await Promise.all([
+    getSettings(),
+    prisma.track.findMany({
+      where: { active: true },
+      select: { id: true, name: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
 
   const checkinUrl = teamCheckinUrl(siteOrigin(), team.qrToken);
 
@@ -136,7 +141,14 @@ export default async function TeamDetailPage({
               {team.participants.map((p) => (
                 <div key={p.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                   <div className="min-w-0">
-                    <div className="font-medium">{p.name}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      <span>{p.name}</span>
+                      {p.ticketId ? (
+                        <span className="font-mono text-xs text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-1.5 py-0.5 rounded">
+                          {p.ticketId}
+                        </span>
+                      ) : null}
+                    </div>
                     <div className="truncate text-xs text-muted-foreground">
                       {p.email}
                       {p.phone ? ` · ${p.phone}` : ""}
@@ -147,6 +159,16 @@ export default async function TeamDetailPage({
                       <span className="text-xs text-muted-foreground">{p.year}</span>
                     ) : null}
                     {p.role === "LEADER" ? <Badge>Lead</Badge> : null}
+                    {team.paymentStatus === "PAID" ? (
+                      <a
+                        href={`/api/admin/participants/${p.id}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded bg-secondary/80 px-2 py-1 text-xs font-medium text-foreground hover:bg-secondary border border-border"
+                      >
+                        <FileDown className="size-3.5" /> PDF
+                      </a>
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -263,6 +285,35 @@ export default async function TeamDetailPage({
             <DeleteTeamButton
               team={{ id: team.id, code: team.code, name: team.name }}
               blockers={undeletableBecause}
+            />
+          ) : null}
+
+          {/* entry fee + ticket. Sits directly above the QR card because the
+              ticket email is what puts that code in a team's inbox. */}
+          {canEdit ? (
+            <PaymentPanel
+              team={{
+                id: team.id,
+                code: team.code,
+                name: team.name,
+                status: team.status,
+                memberCount: team.participants.length,
+                paymentStatus: team.paymentStatus,
+                amountPaid: team.amountPaid === null ? null : String(team.amountPaid),
+                paymentRef: team.paymentRef,
+                paidAt: team.paidAt?.toISOString() ?? null,
+                ticketSentAt: team.ticketSentAt?.toISOString() ?? null,
+                ticketEmailStatus: team.ticketEmailStatus,
+                ticketEmailLastError: team.ticketEmailLastError,
+                participants: team.participants.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  role: p.role,
+                  ticketId: p.ticketId,
+                  pdfFilename: p.pdfFilename,
+                })),
+              }}
+              defaultAmount={team.amountPaid === null ? String(settings.entryFee) : String(team.amountPaid)}
             />
           ) : null}
 

@@ -79,6 +79,8 @@ export const COMM_TYPE_LABEL = {
   CHECKPOINT_REMINDER: "Checkpoint reminder",
   FINALIST_ANNOUNCEMENT: "Finalist announcement",
   RESULTS_CERTIFICATE: "Results & certificate",
+  PAYMENT_ACKNOWLEDGEMENT: "Payment acknowledgement",
+  TICKET_ISSUED: "Ticket & check-in QR",
   CUSTOM: "Custom",
 } as const;
 

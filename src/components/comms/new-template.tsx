@@ -141,7 +141,7 @@ export function NewTemplate() {
               id="tp-subject"
               value={form.subject}
               onChange={(e) => set("subject", e.target.value)}
-              placeholder="AGENTX 2026 — submissions close {{deadline}}"
+              placeholder="TechSiege — submissions close {{deadline}}"
             />
           </div>
 

@@ -1,6 +1,6 @@
-# AGENTX 2026 — Operations Platform
+# TechSiege — Operations Platform
 
-Internal admin and event-day operations system for AGENTX 2026: team registration,
+Internal admin and event-day operations system for TechSiege: team registration,
 automated communications, analytics, judging, sponsor CRM, and the live check-in
 desk.
 
@@ -75,7 +75,7 @@ To set it up:
 2. Create an app password at <https://myaccount.google.com/apppasswords>. Name it
    anything; Google returns 16 characters.
 3. Put those 16 characters in `SMTP_PASSWORD` and set `EMAIL_FROM` to
-   `"AGENTX 2026 <cynex.depticb@gmail.com>"`.
+   `"TechSiege <cynex.depticb@gmail.com>"`.
 
 Two caveats: an ordinary Gmail account is capped at roughly **500 messages a
 day**, which is why `/admin/comms` shows a banner while SMTP is active. And

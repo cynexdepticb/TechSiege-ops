@@ -44,17 +44,11 @@ import { Client } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
-/** Marketing track ids (frontend/lib/content.ts, enforced in backend/src/routes/register.ts)
- *  → ops track slugs (prisma/seed.ts). Both lists are verified against the
- *  database at startup; an unmapped id is a hard error, never a silent skip. */
-const TRACK_MAP: Record<string, string> = {
-  autonomous: "autonomous-ai",
-  education: "ai-for-education",
-  healthcare: "ai-for-healthcare",
-  finance: "ai-for-finance",
-  social: "ai-for-social-impact",
-  devagents: "ai-developer-agents",
-};
+/** Marketing track ids (frontend/lib/content.ts) → ops track slugs
+ *  (prisma/seed.ts). Lives in src/lib/tracks.ts so the live registration route
+ *  resolves tracks the same way this import does; verified against the database
+ *  at startup, and an unmapped id is a hard error, never a silent skip. */
+const { TRACK_MAP } = await import("../src/lib/tracks");
 
 /** Seeded marketing rows are named "[demo] Team N". They exist to populate the
  *  marketing demo, and would otherwise show up as real entrants in the ops

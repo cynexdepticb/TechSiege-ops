@@ -88,7 +88,7 @@ const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@agentx.dev";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "agentx2026";
 
 async function main() {
-  console.log("Seeding AGENTX 2026 ops platform (clean slate)…\n");
+  console.log("Seeding TechSiege ops platform (clean slate)…\n");
 
   /* ── clear previous data ── */
   for (const table of TABLES) {
@@ -101,13 +101,16 @@ async function main() {
   /* ── settings ── */
   await prisma.setting.createMany({
     data: [
-      { key: "event_name", value: "AGENTX 2026" },
+      { key: "event_name", value: "TechSiege" },
       { key: "submission_deadline", value: "2026-10-31T10:00:00+05:30" },
       { key: "registration_open", value: "true" },
       { key: "max_teams", value: "60" },
+      // Only prefills the payment-confirm form in /admin. The amount actually
+      // recorded is whatever the organiser types, since fees change.
+      { key: "entry_fee", value: "1500" },
     ],
   });
-  console.log("  4 settings");
+  console.log("  5 settings");
 
   /* ── tracks ──
    * Base config, not demo data: public registration reads these to build its

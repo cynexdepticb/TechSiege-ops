@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { REGISTRATION } from "@/lib/constants";
+import { teamTicketUrl } from "@/lib/ticket";
 
 /** Human-friendly, unambiguous team code: no O/0/I/1. */
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -35,8 +36,14 @@ export function extractQrToken(payload: string): string {
   return trimmed;
 }
 
+/**
+ * Kept under its old name because callers read as "where do I send this team to
+ * check in". It now points at /ticket/<token> — the page that actually exists.
+ * The old /checkin/<token> shape had no matching route and 404'd, so every link
+ * derived from it was dead.
+ */
 export function teamCheckinUrl(origin: string, token: string): string {
-  return `${origin.replace(/\/$/, "")}/checkin/${token}`;
+  return teamTicketUrl(origin, token);
 }
 
 /** Tracks how many teams are registered against the configured cap. */
@@ -72,6 +79,12 @@ export async function createTeamAndMembers(input: {
     isLeader: boolean;
   }[];
   status?: "PENDING" | "CONFIRMED";
+  /**
+   * The originating row's id in the marketing site's own table, when the team
+   * arrived by forwarding. Persisted so the import script and a retried forward
+   * both recognise the team as already present.
+   */
+  sourceRef?: string;
 }) {
   const emails = input.members.map((m) => m.email.toLowerCase());
 
@@ -118,6 +131,7 @@ export async function createTeamAndMembers(input: {
           trackId: input.team.trackId,
           status: input.status ?? "PENDING",
           qrToken: makeToken(18),
+          ...(input.sourceRef ? { sourceRef: input.sourceRef } : {}),
         },
       });
 

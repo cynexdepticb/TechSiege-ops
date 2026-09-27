@@ -1,4 +1,4 @@
-// AGENTX 2026 — internal operations platform
+// TechSiege — internal operations platform
 // Docs: https://pris.ly/d/prisma-schema
 // Apply with: npm run db:migrate   ·   Reset: npm run db:reset
 
@@ -38,6 +38,24 @@ enum TeamStatus {
   CHECKED_IN
   DISQUALIFIED
   SUBMITTED
+}
+
+/// Entry-fee state, deliberately separate from TeamStatus. A team is CONFIRMED or
+/// CHECKED_IN regardless of whether the fee cleared, and conflating the two would
+/// make "who still owes money" unanswerable without a second source.
+enum PaymentStatus {
+  UNPAID
+  PAID
+}
+
+/// Delivery state of the ONE confirmation email that carries every member's
+/// ticket. Kept on the team row — one email per team, so a join adds nothing.
+/// FAILED is terminal until an organiser re-sends; the check-in code behind the
+/// tickets never changes, so a retry reuses it instead of minting a new one.
+enum TicketEmailStatus {
+  NOT_SENT
+  SENT
+  FAILED
 }
 
 enum ParticipantRole {
@@ -103,6 +121,14 @@ enum CommType {
   CHECKPOINT_REMINDER
   FINALIST_ANNOUNCEMENT
   RESULTS_CERTIFICATE
+  /// Sent when an organiser verifies the entry fee. Carries every member's
+  /// ticket in the same message: the member list, a QR attachment per member
+  /// and the secure ticket link. There is no separate ticket email.
+  PAYMENT_ACKNOWLEDGEMENT
+  /// Standalone QR re-send, kept for the bulk-comms editor and manual top-ups
+  /// from /admin/templates. The payment-verification email already carries the
+  /// QR, so nothing in the normal flow sends this any more.
+  TICKET_ISSUED
   CUSTOM
 }
 
@@ -147,6 +173,7 @@ model User {
   sentComms       CommunicationLog[]
   screenings      Submission[]       @relation("ScreenedBy")
   panelMember     PanelMember?
+  paymentsMarked  Team[]             @relation("TeamPaymentMarkedBy")
 
   @@index([role])
   @@map("users")
@@ -254,19 +281,44 @@ model Team {
   qrToken            String     @unique
   disqualifiedReason String?
   submittedAt        DateTime?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  /// Entry fee. Nothing is collected at registration, so a team sits UNPAID until
+  /// an organiser confirms a transfer. That confirmation is the trigger for the
+  /// whole verification workflow — status flips to PAID and ONE email goes to
+  /// the leader carrying every member's ticket — which is why this is tracked
+  /// here and not in a payments table: one row per team, no gateway, no
+  /// reconciliation.
+  paymentStatus      PaymentStatus @default(UNPAID)
+  amountPaid         Decimal?      @db.Decimal(12, 2)
+  /// UPI / bank / cash reference the organiser saw when confirming the transfer.
+  paymentRef         String        @default("")
+  paidAt             DateTime?
+  /// When the confirmation email carrying the tickets last went out. Stamped
+  /// only on a successful send, so a FAILED state never looks delivered.
+  ticketSentAt       DateTime?
+  /// Delivery state of the confirmation email that carries the tickets.
+  /// NOT_SENT → SENT | FAILED. A FAILED send never un-confirms the payment or
+  /// changes the team's check-in code — the organiser re-sends and the same
+  /// tickets go out again.
+  ticketEmailStatus  TicketEmailStatus @default(NOT_SENT)
+  /// Why the last send failed, kept beside the status so the failure is
+  /// diagnosable from the team page without digging through the comms log.
+  ticketEmailLastError String        @default("")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  track        Track              @relation(fields: [trackId], references: [id], onDelete: Restrict)
-  participants Participant[]
-  submission   Submission?
-  scores       Score[]
-  checkpoints  CheckpointLog[]
-  assignments  Assignment[]
-  comms        CommunicationLog[]
-  analytics    AnalyticsEvent[]
+  track           Track              @relation(fields: [trackId], references: [id], onDelete: Restrict)
+  participants    Participant[]
+  submission      Submission?
+  scores          Score[]
+  checkpoints     CheckpointLog[]
+  assignments     Assignment[]
+  comms           CommunicationLog[]
+  analytics       AnalyticsEvent[]
+  paymentMarkedBy User?              @relation("TeamPaymentMarkedBy", fields: [paidById], references: [id], onDelete: SetNull)
+  paidById        String?
 
   @@index([status])
+  @@index([paymentStatus])
   @@index([trackId, status])
   @@index([college])
   @@index([createdAt])
@@ -274,19 +326,26 @@ model Team {
 }
 
 model Participant {
-  id        String          @id @default(cuid())
-  name      String
-  email     String          @unique
-  phone     String          @default("")
-  college   String
-  year      String          @default("")
-  role      ParticipantRole @default(MEMBER)
-  teamId    String?
-  createdAt DateTime        @default(now())
+  id             String          @id @default(cuid())
+  name           String
+  email          String          @unique
+  phone          String          @default("")
+  college        String
+  year           String          @default("")
+  role           ParticipantRole @default(MEMBER)
+  teamId         String?
+  ticketId       String?         @unique
+  qrToken        String?         @unique
+  pdfFilename    String?
+  pdfPath        String?
+  pdfGeneratedAt DateTime?
+  createdAt      DateTime        @default(now())
 
   team Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
   @@index([teamId])
+  @@index([ticketId])
+  @@index([qrToken])
   @@map("participants")
 }
 

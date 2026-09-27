@@ -10,6 +10,45 @@ import type { CheckpointName, TeamStatus } from "@/generated/prisma/enums";
 
 export const dynamic = "force-dynamic";
 
+/** Extract all plausible lookup keys from any scanned QR text, URL, token, or code. */
+export function extractLookupCandidates(payload: string): string[] {
+  const trimmed = payload.trim();
+  if (!trimmed) return [];
+  const set = new Set<string>();
+  set.add(trimmed);
+
+  // If URL, parse out query parameters and pathname segments
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    try {
+      const url = new URL(trimmed);
+      for (const val of url.searchParams.values()) {
+        if (val) set.add(val.trim());
+      }
+      const parts = url.pathname.split("/").filter(Boolean);
+      for (const p of parts) {
+        const decoded = decodeURIComponent(p).trim();
+        if (
+          decoded &&
+          !["api", "tickets", "ticket", "pdf", "checkin", "admin"].includes(decoded.toLowerCase())
+        ) {
+          set.add(decoded);
+        }
+      }
+    } catch {}
+  }
+
+  // Handle TECHSIEGE prefixes
+  for (const item of Array.from(set)) {
+    if (item.toUpperCase().startsWith("TECHSIEGE:TICKET:")) {
+      set.add(item.replace(/^TECHSIEGE:TICKET:/i, "").trim());
+    } else {
+      set.add(`TECHSIEGE:TICKET:${item}`);
+    }
+  }
+
+  return Array.from(set).filter(Boolean);
+}
+
 /** Volunteer-facing scan endpoint. Idempotent per team+checkpoint. */
 export async function POST(req: Request) {
   const auth = await guard("checkin", "write");
@@ -26,23 +65,53 @@ export async function POST(req: Request) {
   if (!parsed.success) return zodFail(parsed.error as ZodError);
   const { payload, teamId, checkpoint, note, notedBy } = parsed.data;
 
-  // A scan carries the secret QR token; manual entry from the checkpoint board
-  // carries the team id, since there is no code to scan at that desk.
-  const team = await prisma.team.findUnique({
-    where: payload ? { qrToken: extractQrToken(payload) } : { id: teamId },
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      status: true,
+  const candidates = payload ? extractLookupCandidates(payload) : [];
+
+  const team = await prisma.team.findFirst({
+    where: payload
+      ? {
+          OR: [
+            ...candidates.map((c) => ({ code: { equals: c, mode: "insensitive" as const } })),
+            ...candidates.map((c) => ({ qrToken: { equals: c, mode: "insensitive" as const } })),
+            ...candidates.map((c) => ({ id: c })),
+            ...candidates.map((c) => ({ sourceRef: c })),
+            ...candidates.map((c) => ({ contactEmail: { equals: c, mode: "insensitive" as const } })),
+            ...candidates.map((c) => ({ name: { equals: c, mode: "insensitive" as const } })),
+            {
+              participants: {
+                some: {
+                  OR: [
+                    ...candidates.map((c) => ({ ticketId: { equals: c, mode: "insensitive" as const } })),
+                    ...candidates.map((c) => ({ qrToken: { equals: c, mode: "insensitive" as const } })),
+                    ...candidates.map((c) => ({ email: { equals: c, mode: "insensitive" as const } })),
+                  ],
+                },
+              },
+            },
+          ],
+        }
+      : { id: teamId },
+    include: {
       track: { select: { name: true } },
+      participants: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          ticketId: true,
+          pdfFilename: true,
+          qrToken: true,
+        },
+        orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+      },
       _count: { select: { participants: true } },
     },
   });
 
   if (!team) {
     return NextResponse.json(
-      { ok: false, error: "No team matches that code.", reason: "UNKNOWN" },
+      { ok: false, error: "No matching team or ticket found. Check the code and try again.", reason: "UNKNOWN" },
       { status: 404 },
     );
   }
@@ -81,21 +150,41 @@ export async function POST(req: Request) {
 
   const recorder = notedBy?.trim() || auth.actor.name;
 
+  const matchedParticipant = payload
+    ? team.participants.find((p) =>
+        candidates.some(
+          (c) =>
+            p.ticketId?.toLowerCase() === c.toLowerCase() ||
+            p.qrToken?.toLowerCase() === c.toLowerCase() ||
+            p.email.toLowerCase() === c.toLowerCase(),
+        ),
+      )
+    : undefined;
+
   if (already && !teamId) {
-    // Re-scanning the same code must stay idempotent: volunteers work through a
-    // queue and will hit the same team twice. Report, don't duplicate.
+    // Re-scanning the same code must stay idempotent
     return NextResponse.json({
       ok: true,
       duplicate: true,
-      team,
-      message: `${team.code} already logged for this checkpoint.`,
+      team: {
+        id: team.id,
+        code: team.code,
+        name: team.name,
+        status: team.status,
+        paymentStatus: team.paymentStatus,
+        college: team.college,
+        track: team.track,
+        participants: team.participants,
+        _count: team._count,
+      },
+      matchedParticipant,
+      checkpoint,
+      message: `${team.code} already logged for ${checkpoint}.`,
       loggedAt: already.createdAt,
     });
   }
 
   const [log] = await prisma.$transaction([
-    // Manual entry from the board edits in place so a corrected note doesn't
-    // leave a stale duplicate row behind.
     already
       ? prisma.checkpointLog.update({
           where: { id: already.id },
@@ -150,27 +239,19 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     duplicate: false,
-    team: { ...team, status: nextStatus ?? team.status },
+    team: {
+      id: team.id,
+      code: team.code,
+      name: team.name,
+      status: nextStatus ?? team.status,
+      paymentStatus: team.paymentStatus,
+      college: team.college,
+      track: team.track,
+      participants: team.participants,
+      _count: team._count,
+    },
+    matchedParticipant,
+    checkpoint,
     loggedAt: log!.createdAt,
   });
-}
-
-/** Recent scans, for the volunteer's "last few" list. */
-export async function GET() {
-  const auth = await guard("checkin", "read");
-  if ("response" in auth) return auth.response;
-
-  const recent = await prisma.checkpointLog.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 25,
-    select: {
-      id: true,
-      checkpoint: true,
-      createdAt: true,
-      notedBy: true,
-      team: { select: { code: true, name: true, track: { select: { name: true } } } },
-    },
-  });
-
-  return NextResponse.json({ ok: true, recent });
 }

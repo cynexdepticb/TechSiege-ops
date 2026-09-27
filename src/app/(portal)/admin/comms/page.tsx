@@ -53,7 +53,7 @@ export default async function CommsPage() {
 
   const failedRecent = recent.filter((c) => c.status === "FAILED" || c.status === "BOUNCED").length;
   const smtpActive = transportName() === "smtp";
-  const fromAddress = process.env.EMAIL_FROM ?? "AGENTX 2026 <no-reply@example.com>";
+  const fromAddress = process.env.EMAIL_FROM ?? "TechSiege <no-reply@example.com>";
   const total = delivery.totals.ALL;
   const delivered = delivery.totals.DELIVERED + delivery.totals.OPENED;
   const failed = delivery.totals.FAILED + delivery.totals.BOUNCED;

@@ -6,6 +6,7 @@ import { getSettings, registrationsRemainingSafe } from "@/lib/settings-helpers"
 import { findDuplicateEmails, registrationSchema, validateLeaderRule } from "@/lib/validation";
 import { sendTemplatedEmail } from "@/lib/email/send";
 import { buildVars } from "@/lib/email/vars";
+import { opsSlugForMarketingTrack } from "@/lib/tracks";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,13 @@ type SubmitPayload = {
   team: unknown;
   members: unknown;
   resumeToken?: string;
+  /**
+   * The marketing site's `public.teams.id`. When present the submit is treated
+   * as a re-delivery of an already-recorded registration rather than a new one,
+   * so a retry after a timeout cannot create a second team or re-send every
+   * confirmation email.
+   */
+  sourceRef?: string;
 };
 type CheckPayload = {
   action: "check-email" | "check-name" | "check-track";
@@ -95,6 +103,32 @@ export async function POST(req: Request) {
 
   const input = parsed.data;
 
+  /* Idempotency. The marketing site commits to its own table and then forwards
+     here, so a retry after a timeout is expected rather than exceptional. Without
+     this a retried request would create a duplicate team and re-send every
+     confirmation email to every member. */
+  if (body.sourceRef) {
+    const existing = await prisma.team.findUnique({
+      where: { sourceRef: body.sourceRef },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        track: { select: { name: true } },
+      },
+    });
+    if (existing) {
+      return NextResponse.json({
+        ok: true,
+        duplicate: true,
+        team: existing,
+        emailed: 0,
+        recipients: 0,
+        undelivered: [],
+      });
+    }
+  }
+
   const leaderProblem = validateLeaderRule(input);
   if (leaderProblem) return error(422, leaderProblem);
 
@@ -106,6 +140,12 @@ export async function POST(req: Request) {
   const remaining = await registrationsRemainingSafe(settings.maxTeams);
   if (remaining <= 0) return error(403, "Registration has reached the team cap.");
 
+  /* Accepts an ops track id, an ops slug, or a marketing track id. The marketing
+     form posts its own short ids, and rejecting those would push every
+     registration back onto the manual import path. */
+  const track = await resolveTrack(input.team.trackId);
+  if ("error" in track) return error(422, track.error);
+
   const result = await createTeamAndMembers({
     team: {
       name: input.team.name,
@@ -115,9 +155,10 @@ export async function POST(req: Request) {
       contactEmail: input.team.contactEmail,
       contactPhone: input.team.contactPhone,
       projectIdea: input.team.projectIdea,
-      trackId: input.team.trackId,
+      trackId: track.id,
     },
     members: input.members,
+    sourceRef: body.sourceRef,
   });
 
   if (!result.ok) {
@@ -210,4 +251,49 @@ function fieldErrors(error: ZodError): Record<string, string> {
     if (!out[path]) out[path] = issue.message;
   }
   return out;
+}
+
+/**
+ * Resolves whatever the caller called a track into an ops Track row.
+ *
+ * Three accepted shapes, tried in order: an ops cuid (the public registration
+ * form posts these), an ops slug, then a marketing track id via TRACK_MAP. The
+ * last one is what lets the marketing site forward registrations directly.
+ *
+ * An unmapped or unknown value is a 422 naming the track, not a fallback to some
+ * default track — silently putting a team in the wrong track would corrupt the
+ * judging split, and the error is what tells whoever has to fix TRACK_MAP.
+ */
+async function resolveTrack(
+  value: string,
+): Promise<{ id: string; name: string } | { error: string }> {
+  const byId = await prisma.track.findUnique({
+    where: { id: value },
+    select: { id: true, name: true },
+  });
+  if (byId) return byId;
+
+  const bySlug = await prisma.track.findUnique({
+    where: { slug: value },
+    select: { id: true, name: true },
+  });
+  if (bySlug) return bySlug;
+
+  const slug = opsSlugForMarketingTrack(value);
+  if (!slug) {
+    return {
+      error: `Unknown track "${value}". Send an ops track id, an ops track slug, or a marketing track id listed in TRACK_MAP.`,
+    };
+  }
+
+  const mapped = await prisma.track.findUnique({
+    where: { slug },
+    select: { id: true, name: true },
+  });
+  if (!mapped) {
+    return {
+      error: `Track "${value}" maps to ops track "${slug}", which does not exist. Run "npm run db:seed" or correct TRACK_MAP in src/lib/tracks.ts.`,
+    };
+  }
+  return mapped;
 }

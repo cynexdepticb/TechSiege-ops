@@ -45,6 +45,12 @@ const LIST_SELECT = {
   contactName: true,
   contactEmail: true,
   createdAt: true,
+  // Payment state travels with the row so the list can show who still owes money
+  // without a second request, and so the CSV export can be reconciled.
+  paymentStatus: true,
+  amountPaid: true,
+  paidAt: true,
+  ticketSentAt: true,
   track: { select: { id: true, name: true } },
   // `scores` is selected so the delete affordance can tell up front that a team
   // is undeletable, matching what the DELETE route refuses on.
@@ -96,6 +102,13 @@ export async function GET(req: Request) {
         "github_repo",
         "screening",
         "registered_at",
+        // Payment columns come last so the reconciliation columns sit together at
+        // the end of the sheet, where whoever chases transfers will look.
+        "payment_status",
+        "amount_paid",
+        "payment_ref",
+        "paid_at",
+        "ticket_sent_at",
       ],
       rows.map((t) => [
         t.code,
@@ -111,13 +124,18 @@ export async function GET(req: Request) {
         t.submission?.githubRepoUrl ?? "",
         t.submission?.screeningStatus ?? "",
         t.createdAt.toISOString(),
+        t.paymentStatus,
+        t.amountPaid === null ? "" : String(t.amountPaid),
+        t.paymentRef,
+        t.paidAt?.toISOString() ?? "",
+        t.ticketSentAt?.toISOString() ?? "",
       ]),
     );
 
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="agentx-teams-${new Date().toISOString().slice(0, 10)}.csv"`,
+        "Content-Disposition": `attachment; filename="techsiege-teams-${new Date().toISOString().slice(0, 10)}.csv"`,
         "Cache-Control": "no-store",
       },
     });

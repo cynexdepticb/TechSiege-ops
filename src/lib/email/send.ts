@@ -5,7 +5,7 @@ import { renderTemplate, type TemplateVars } from "@/lib/email/templates";
 import { SITE } from "@/lib/site";
 import type { CommStatus, CommType } from "@/generated/prisma/enums";
 
-const FROM = process.env.EMAIL_FROM ?? "AGENTX 2026 <no-reply@example.com>";
+const FROM = process.env.EMAIL_FROM ?? "TechSiege <no-reply@example.com>";
 
 /**
  * `smtp` sends for real over SMTP; `console` is the no-credentials fallback that
@@ -52,14 +52,31 @@ export type SendResult = {
   error?: string;
 };
 
+/**
+ * A file sent alongside the body. `content` takes the raw bytes — nodemailer
+ * base64-encodes a Buffer itself, so pre-encoding here would double-encode and
+ * produce an unopenable file.
+ */
+export type EmailAttachment = {
+  filename: string;
+  content: Buffer | string;
+  contentType: string;
+};
+
 export async function sendEmail(input: {
   to: string;
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
 }): Promise<SendResult> {
   if (transport() === "console") {
     if (process.env.NODE_ENV !== "test") {
-      console.info(`[email:dev] to=${input.to} subject="${input.subject}"`);
+      const attached = input.attachments?.length
+        ? ` attachments=${input.attachments.map((a) => a.filename).join(",")}`
+        : "";
+      console.info(
+        `[email:dev] to=${input.to} subject="${input.subject}"${attached}`,
+      );
     }
     return { status: "SENT", providerId: `dev-${Date.now()}` };
   }
@@ -70,6 +87,7 @@ export async function sendEmail(input: {
       to: input.to,
       subject: input.subject,
       html: input.html,
+      ...(input.attachments?.length ? { attachments: input.attachments } : {}),
     });
     return { status: "SENT", providerId: info.messageId };
   } catch (e) {
@@ -120,6 +138,13 @@ export type SendToTeamInput = {
   recipientName?: string;
   vars: TemplateVars;
   sentById?: string | null;
+  /**
+   * Attached to the message, not stored on the log. The ticket email's QR is
+   * regenerated per send from the team's qrToken rather than kept as a blob, so
+   * a re-send after a token rotation produces a correct code instead of resending
+   * a revoked one.
+   */
+  attachments?: EmailAttachment[];
 };
 
 /** Renders a stored template, sends it, and records the outcome. */
@@ -140,7 +165,12 @@ export async function sendTemplatedEmail(input: SendToTeamInput): Promise<SendRe
   const subject = renderTemplate(template.subject, input.vars);
   const body = renderTemplate(template.body, input.vars);
   const html = toHtml(template.body, input.vars);
-  const result = await sendEmail({ to: input.to, subject, html });
+  const result = await sendEmail({
+    to: input.to,
+    subject,
+    html,
+    attachments: input.attachments,
+  });
 
   await logComm({
     ...input,

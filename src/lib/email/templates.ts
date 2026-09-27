@@ -4,7 +4,16 @@ import { CRITERIA, SITE } from "@/lib/site";
 export type TemplateSeed = {
   key: string;
   name: string;
-  type: "CONFIRMATION" | "APPROVAL" | "WORKSHOP_REMINDER" | "PRE_EVENT_CHECKLIST" | "CHECKPOINT_REMINDER" | "FINALIST_ANNOUNCEMENT" | "RESULTS_CERTIFICATE";
+  type:
+    | "CONFIRMATION"
+    | "APPROVAL"
+    | "WORKSHOP_REMINDER"
+    | "PRE_EVENT_CHECKLIST"
+    | "CHECKPOINT_REMINDER"
+    | "FINALIST_ANNOUNCEMENT"
+    | "RESULTS_CERTIFICATE"
+    | "PAYMENT_ACKNOWLEDGEMENT"
+    | "TICKET_ISSUED";
   subject: string;
   body: string;
 };
@@ -24,16 +33,71 @@ College: {{college}}
 Members: {{memberCount}}
 Venue: {{venue}}
 
-Keep this email — you'll need the team ID and the QR code in it for check-in,
-mentor checkpoints and submission on event day.
+Keep this email — you'll need the team ID for check-in, mentor checkpoints and
+submission on event day.
 
 Next steps:
-1. Attend the pre-event orientation (details in the checklist email).
-2. Bring a laptop with your toolchain ready to go.
-3. Your check-in QR code is attached / linked in this email.
+1. Pay the entry fee using the details in your registration email.
+2. Attend the pre-event orientation (details in the checklist email).
+3. Bring a laptop with your toolchain ready to go.
+
+We'll email you separately once your payment is confirmed, and that email
+carries your check-in QR code.
 
 See you on the floor,
 The {{eventName}} team`,
+  },
+  {
+    key: "payment_acknowledgement",
+    name: "Payment confirmation & tickets",
+    type: "PAYMENT_ACKNOWLEDGEMENT",
+    subject: "TechSiege 2026 — Registration Confirmed & Tickets",
+    body: `Hi {{leaderName}},
+
+We've received and verified the entry fee for team {{teamName}}. Your registration for {{eventName}} is officially confirmed!
+
+Team Details:
+- Team Name: {{teamName}}
+- Team ID: {{teamCode}}
+- Track: {{track}}
+- College: {{college}}
+
+Attached to this email are the admission tickets for all registered team members. Each ticket contains a unique QR code required for check-in at the venue. Please share each ticket with the respective member.
+
+Event Details:
+- Event: {{eventName}} (BUILD. AUTOMATE. ACT.)
+- Event Date: {{eventDate}}
+- Venue: {{venue}}
+- Check-in Time: 8:30 AM
+
+See you on {{eventDate}} at {{venue}}!
+
+The {{eventName}} Operations Team`,
+  },
+  {
+    key: "ticket_issued",
+    name: "Ticket & check-in QR",
+    type: "TICKET_ISSUED",
+    subject: "Your {{eventName}} ticket — team {{teamCode}}",
+    body: `Hi {{leaderName}},
+
+Here's everything you need for event day. Your check-in QR code is attached to
+this email as an image, and the same code is always available at:
+{{ticketUrl}}
+
+Team ID: {{teamCode}}
+Track: {{track}}
+College: {{college}}
+Members: {{memberCount}}
+Venue: {{venue}}
+Check-in opens: {{eventDate}}
+
+On the day:
+1. Open the attached code on your phone, or bookmark the link above.
+2. Report to the registration desk — arrive 30 minutes early for badges.
+3. A volunteer scans your code once per checkpoint, so keep your phone charged.
+
+— The {{eventName}} team`,
   },
   {
     key: "approval_confirmation",
@@ -162,6 +226,9 @@ export const TEMPLATE_VARIABLES = [
   { key: "venue", label: "Venue" },
   { key: "deadline", label: "Submission deadline" },
   { key: "checkpoint", label: "Checkpoint name" },
+  { key: "amountPaid", label: "Entry fee received" },
+  { key: "paymentRef", label: "UPI / bank reference for the transfer" },
+  { key: "ticketUrl", label: "Link to the team's own ticket page" },
   { key: "totalScore", label: "Weighted score" },
   { key: "awardLine", label: "Award line" },
   { key: "finalSlot", label: "Final demo slot length" },
