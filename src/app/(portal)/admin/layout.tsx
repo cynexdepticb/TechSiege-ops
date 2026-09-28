@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   );
 
   return (
-    <div className="flex min-h-dvh">
+    <div className="flex min-h-dvh flex-col lg:flex-row">
       <Sidebar
         sections={sections}
         actor={{

@@ -146,14 +146,14 @@ export function MemberQrCards({
           ) : null}
 
           {/* Action Links */}
-          <div className="flex items-center gap-2 pt-1 w-full justify-center">
+          <div className="flex flex-wrap items-center gap-2 pt-1 w-full justify-center">
             <Link
               href={ticketUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded bg-secondary/80 px-2.5 py-1 text-xs font-medium text-foreground hover:bg-secondary border border-border"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-secondary/80 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary border border-border"
             >
-              <ExternalLink className="size-3" /> Open Ticket Page
+              <ExternalLink className="size-3.5" /> Open Ticket Page
             </Link>
 
             {selectedParticipant ? (
@@ -161,9 +161,9 @@ export function MemberQrCards({
                 href={`/api/admin/participants/${selectedParticipant.id}/pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded bg-cyan-950/40 px-2.5 py-1 text-xs font-medium text-cyan-300 hover:bg-cyan-950/70 border border-cyan-800/50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-950/40 px-3 py-1.5 text-xs font-medium text-cyan-300 hover:bg-cyan-950/70 border border-cyan-800/50"
               >
-                <FileDown className="size-3" /> PDF Ticket
+                <FileDown className="size-3.5" /> PDF Ticket
               </a>
             ) : null}
           </div>

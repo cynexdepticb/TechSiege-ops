@@ -178,7 +178,91 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
             />
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Mobile Card List View */}
+              <div className="divide-y divide-border sm:hidden">
+                {teams.map((t) => (
+                  <div key={t.id} className="p-3.5 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          href={`/admin/teams/${t.id}`}
+                          className="font-medium text-foreground hover:underline text-sm truncate block"
+                        >
+                          {t.name}
+                        </Link>
+                        <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground mt-0.5">
+                          <span className="text-cyan-400 font-semibold">{t.code}</span>
+                          <span>·</span>
+                          <span className="truncate">{t.track.name}</span>
+                        </div>
+                      </div>
+                      <Badge variant={TEAM_STATUS_VARIANT[t.status]} className="shrink-0 text-[10px]">
+                        {TEAM_STATUS_LABEL[t.status]}
+                      </Badge>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground flex items-center justify-between gap-2">
+                      <span className="truncate">{t.college}{t.city ? `, ${t.city}` : ""}</span>
+                      <span className="shrink-0 tabular-nums font-medium text-foreground/80">{t._count.participants} members</span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+                      <div className="flex items-center gap-1.5">
+                        <Badge
+                          variant={t.paymentStatus === "PAID" ? "success" : "muted"}
+                          className="text-[10px] py-0 px-1.5 h-5"
+                        >
+                          {t.paymentStatus === "PAID" ? "Paid" : "Unpaid"}
+                        </Badge>
+                        {t.submission ? (
+                          <Badge
+                            variant={t.submission.screeningStatus === ScreeningStatus.ADVANCE ? "success" : t.submission.screeningStatus === ScreeningStatus.NOT_ADVANCING ? "destructive" : "muted"}
+                            className="text-[10px] py-0 px-1.5 h-5"
+                          >
+                            {SCREENING_LABEL[t.submission.screeningStatus]}
+                          </Badge>
+                        ) : null}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <Button asChild variant="outline" size="sm" className="h-7 text-xs px-2.5">
+                          <Link href={`/admin/teams/${t.id}`}>View &rarr;</Link>
+                        </Button>
+                        {canWriteTeams ? (
+                          <div className="flex items-center gap-0.5">
+                            {t.paymentStatus !== "PAID" ? (
+                              <RowMarkPaid
+                                team={{ id: t.id, code: t.code, name: t.name }}
+                                defaultAmount={String(settings.entryFee)}
+                              />
+                            ) : !t.ticketSentAt ? (
+                              <RowSendTicket
+                                team={{ id: t.id, code: t.code, name: t.name }}
+                              />
+                            ) : null}
+                            <RowDeleteButton
+                              team={{ id: t.id, code: t.code, name: t.name }}
+                              memberCount={t._count.participants}
+                              blockers={[
+                                ...(t._count.checkpoints > 0
+                                  ? [`${t._count.checkpoints} checkpoint log(s)`]
+                                  : []),
+                                ...(t._count.scores > 0
+                                  ? [`${t._count.scores} recorded score(s)`]
+                                  : []),
+                                ...(t.submission ? ["a submitted project"] : []),
+                              ]}
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -296,27 +380,27 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
               </div>
 
               {pages > 1 ? (
-                <div className="flex items-center justify-between border-t px-4 py-3 text-sm">
-                  <span className="text-muted-foreground">
+                <div className="flex flex-col sm:flex-row gap-2.5 items-center justify-between border-t px-4 py-3 text-xs sm:text-sm">
+                  <span className="text-muted-foreground text-center sm:text-left">
                     Page {page} of {pages} · {formatNumber(total)} teams
                   </span>
                   <div className="flex gap-2">
-                    <Button asChild variant="outline" size="sm">
+                    <Button asChild variant="outline" size="sm" className="h-8 text-xs">
                       <a
                         href={pageHref(page - 1)}
                         aria-disabled={page <= 1}
                         className={page <= 1 ? "pointer-events-none opacity-50" : ""}
                       >
-                        <ChevronLeft className="size-4" /> Previous
+                        <ChevronLeft className="size-4 mr-0.5" /> Previous
                       </a>
                     </Button>
-                    <Button asChild variant="outline" size="sm">
+                    <Button asChild variant="outline" size="sm" className="h-8 text-xs">
                       <a
                         href={pageHref(page + 1)}
                         aria-disabled={page >= pages}
                         className={page >= pages ? "pointer-events-none opacity-50" : ""}
                       >
-                        Next <ChevronRight className="size-4" />
+                        Next <ChevronRight className="size-4 ml-0.5" />
                       </a>
                     </Button>
                   </div>

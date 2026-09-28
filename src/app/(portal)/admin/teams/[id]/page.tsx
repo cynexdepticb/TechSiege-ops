@@ -140,9 +140,9 @@ export default async function TeamDetailPage({
             </CardHeader>
             <CardContent className="divide-y">
               {team.participants.map((p) => (
-                <div key={p.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 py-3 text-sm">
                   <div className="min-w-0">
-                    <div className="font-medium flex items-center gap-2">
+                    <div className="font-medium flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <span>{p.name}</span>
                       {p.ticketId ? (
                         <Link
@@ -166,12 +166,12 @@ export default async function TeamDetailPage({
                         </span>
                       )}
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">
+                    <div className="truncate text-xs text-muted-foreground mt-0.5">
                       {p.email}
                       {p.phone ? ` · ${p.phone}` : ""}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 sm:shrink-0 pt-1.5 sm:pt-0 border-t border-border/30 sm:border-0">
                     {p.year ? (
                       <span className="text-xs text-muted-foreground">{p.year}</span>
                     ) : null}

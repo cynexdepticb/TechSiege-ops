@@ -295,15 +295,18 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
 
         <CardContent className="space-y-4">
           <Tabs defaultValue="camera">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="camera" className="text-xs flex items-center gap-1.5">
-                <Camera className="size-3.5" /> Camera
+            <TabsList className="grid w-full grid-cols-3 h-10">
+              <TabsTrigger value="camera" className="text-xs flex items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-3">
+                <Camera className="size-3.5 shrink-0" />
+                <span>Camera</span>
               </TabsTrigger>
-              <TabsTrigger value="manual" className="text-xs flex items-center gap-1.5">
-                <Keyboard className="size-3.5" /> Type Code
+              <TabsTrigger value="manual" className="text-xs flex items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-3">
+                <Keyboard className="size-3.5 shrink-0" />
+                <span>Type Code</span>
               </TabsTrigger>
-              <TabsTrigger value="upload" className="text-xs flex items-center gap-1.5">
-                <FileImage className="size-3.5" /> Upload Image
+              <TabsTrigger value="upload" className="text-xs flex items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-3">
+                <FileImage className="size-3.5 shrink-0" />
+                <span>Upload</span>
               </TabsTrigger>
             </TabsList>
 
@@ -318,9 +321,9 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                 />
 
                 {!scanning ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center bg-black/80">
-                    <div className="rounded-full bg-primary/10 p-3 text-primary border border-primary/20">
-                      <ScanLine className="size-7" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-4 sm:p-6 text-center bg-black/80">
+                    <div className="rounded-full bg-primary/10 p-2.5 sm:p-3 text-primary border border-primary/20">
+                      <ScanLine className="size-6 sm:size-7" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">Live Camera Scanner</p>
@@ -329,27 +332,27 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                       </p>
                     </div>
                     {cameraError ? (
-                      <p className="text-xs text-destructive bg-destructive/10 px-2.5 py-1 rounded">
+                      <p className="text-xs text-destructive bg-destructive/10 px-2.5 py-1 rounded max-w-xs">
                         {cameraError}
                       </p>
                     ) : null}
-                    <Button onClick={startCamera} className="bg-primary text-primary-foreground font-semibold text-xs h-8">
+                    <Button onClick={startCamera} className="bg-primary text-primary-foreground font-semibold text-xs h-8.5 px-4 touch-manipulation">
                       <Camera className="size-3.5 mr-1.5" /> Start Camera
                     </Button>
                   </div>
                 ) : (
                   <>
                     {/* Viewfinder Target */}
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <div className="relative size-56 sm:size-64 rounded-xl border-2 border-primary/80 bg-primary/5 shadow-[0_0_24px_rgba(34,211,238,0.25)] flex items-center justify-center">
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
+                      <div className="relative size-44 sm:size-60 rounded-xl border-2 border-primary/80 bg-primary/5 shadow-[0_0_24px_rgba(34,211,238,0.25)] flex items-center justify-center">
                         <div className="absolute inset-x-2 top-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse" />
-                        <span className="text-[10px] uppercase tracking-wider text-cyan-400 font-bold bg-black/60 px-2 py-0.5 rounded border border-cyan-800/40">
+                        <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-cyan-400 font-bold bg-black/70 px-2 py-0.5 rounded border border-cyan-800/40">
                           Align ticket QR code
                         </span>
                       </div>
                     </div>
 
-                    <div className="absolute top-3 left-3 bg-black/70 px-2.5 py-1 rounded-md text-[11px] text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5">
+                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-black/80 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[10px] sm:text-[11px] text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5">
                       <span className="size-2 rounded-full bg-emerald-400 animate-ping" />
                       Live scanning active
                     </div>
@@ -357,7 +360,7 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                     <Button
                       variant="secondary"
                       size="sm"
-                      className="absolute top-3 right-3 text-xs bg-black/70 hover:bg-black/90 text-white border border-white/20"
+                      className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[11px] sm:text-xs h-7 sm:h-8 bg-black/80 hover:bg-black/95 text-white border border-white/20 touch-manipulation"
                       onClick={stopCamera}
                     >
                       Stop Camera
@@ -531,9 +534,9 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                   <span className="text-muted-foreground">Track:</span>
                   <span>{result.team.track.name}</span>
                 </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-muted-foreground">College:</span>
-                  <span className="truncate max-w-[200px]">{result.team.college}</span>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-muted-foreground shrink-0">College:</span>
+                  <span className="truncate max-w-[140px] sm:max-w-[220px] text-right">{result.team.college}</span>
                 </div>
                 <div className="flex items-baseline justify-between">
                   <span className="text-muted-foreground">Payment:</span>

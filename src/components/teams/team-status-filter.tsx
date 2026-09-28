@@ -78,79 +78,81 @@ export function TeamStatusFilter({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name, code, contact, college…"
-          className="pl-9"
+          className="pl-9 h-9"
           aria-label="Search teams"
         />
       </div>
 
-      <Select
-        value={defaults.status || "all"}
-        onValueChange={(v) => set("status", v === "all" ? "" : v)}
-      >
-        <SelectTrigger className="sm:w-44" aria-label="Filter by status">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All statuses</SelectItem>
-          {Object.values(TeamStatus).map((s) => (
-            <SelectItem key={s} value={s}>
-              {TEAM_STATUS_LABEL[s]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+        <Select
+          value={defaults.status || "all"}
+          onValueChange={(v) => set("status", v === "all" ? "" : v)}
+        >
+          <SelectTrigger className="w-full sm:w-40 h-9 text-xs" aria-label="Filter by status">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {Object.values(TeamStatus).map((s) => (
+              <SelectItem key={s} value={s}>
+                {TEAM_STATUS_LABEL[s]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      <Select
-        value={defaults.trackId || "all"}
-        onValueChange={(v) => set("trackId", v === "all" ? "" : v)}
-      >
-        <SelectTrigger className="sm:w-52" aria-label="Filter by track">
-          <SelectValue placeholder="Track" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All tracks</SelectItem>
-          {tracks.map((t) => (
-            <SelectItem key={t.id} value={t.id}>
-              {t.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <Select
+          value={defaults.trackId || "all"}
+          onValueChange={(v) => set("trackId", v === "all" ? "" : v)}
+        >
+          <SelectTrigger className="w-full sm:w-44 h-9 text-xs" aria-label="Filter by track">
+            <SelectValue placeholder="Track" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All tracks</SelectItem>
+            {tracks.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      <Select
-        value={defaults.college || "all"}
-        onValueChange={(v) => set("college", v === "all" ? "" : v)}
-      >
-        <SelectTrigger className="sm:w-52" aria-label="Filter by college">
-          <SelectValue placeholder="College" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All colleges</SelectItem>
-          {colleges.map((c) => (
-            <SelectItem key={c} value={c}>
-              {c}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <Select
+          value={defaults.college || "all"}
+          onValueChange={(v) => set("college", v === "all" ? "" : v)}
+        >
+          <SelectTrigger className="w-full sm:w-44 h-9 text-xs" aria-label="Filter by college">
+            <SelectValue placeholder="College" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All colleges</SelectItem>
+            {colleges.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      <Select
-        value={defaults.paid || "all"}
-        onValueChange={(v) => set("paid", v === "all" ? "" : v)}
-      >
-        <SelectTrigger className="sm:w-40" aria-label="Filter by entry fee">
-          <SelectValue placeholder="Fee" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All fees</SelectItem>
-          <SelectItem value="unpaid">Unpaid</SelectItem>
-          <SelectItem value="paid">Paid</SelectItem>
-        </SelectContent>
-      </Select>
+        <Select
+          value={defaults.paid || "all"}
+          onValueChange={(v) => set("paid", v === "all" ? "" : v)}
+        >
+          <SelectTrigger className="w-full sm:w-36 h-9 text-xs" aria-label="Filter by entry fee">
+            <SelectValue placeholder="Fee" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All fees</SelectItem>
+            <SelectItem value="unpaid">Unpaid</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       {hasFilters ? (
-        <Button variant="ghost" size="sm" onClick={() => router.push("/admin/teams")}>
-          <X className="size-4" /> Clear
+        <Button variant="ghost" size="sm" onClick={() => router.push("/admin/teams")} className="self-start sm:self-auto h-9 text-xs">
+          <X className="size-4 mr-1" /> Clear
         </Button>
       ) : null}
     </div>

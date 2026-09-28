@@ -55,12 +55,12 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
     const qrDataUrl = await teamQrDataUrl(qrPayload);
 
     return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-6 px-4 py-8">
-        <header className="text-center">
+      <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-5 px-3.5 py-6 sm:px-4 sm:py-8">
+        <header className="text-center px-1">
           <p className="text-xs uppercase tracking-[0.2em] font-semibold text-cyan-400">
             TechSiege 2026 &middot; BUILD. AUTOMATE. ACT.
           </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             Official Admission Ticket
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -68,7 +68,7 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
           </p>
         </header>
 
-        <div className="rounded-2xl border border-cyan-800/40 bg-gradient-to-b from-card to-card/90 p-6 shadow-xl shadow-cyan-950/20">
+        <div className="rounded-2xl border border-cyan-800/40 bg-gradient-to-b from-card to-card/90 p-4 sm:p-6 shadow-xl shadow-cyan-950/20">
           {/* Header Badge */}
           <div className="flex items-center justify-between border-b border-border/80 pb-4">
             <div>
@@ -242,12 +242,12 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
   const qr = await teamQrDataUrl(token);
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-6 px-4 py-8">
-      <header className="text-center">
+    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-5 px-3.5 py-6 sm:px-4 sm:py-8">
+      <header className="text-center px-1">
         <p className="text-xs uppercase tracking-[0.2em] font-semibold text-cyan-400">
           TechSiege 2026 &middot; BUILD. AUTOMATE. ACT.
         </p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
+        <h1 className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground">
           Team Check-in Pass
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
@@ -255,7 +255,7 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
         </p>
       </header>
 
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-xl">
+      <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xl">
         <div className="mx-auto w-fit rounded-xl bg-white p-3 shadow">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

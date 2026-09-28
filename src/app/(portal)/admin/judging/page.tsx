@@ -129,7 +129,7 @@ export default async function JudgingPage() {
                 />
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[40rem] text-sm">
+                  <table className="w-full min-w-[28rem] sm:min-w-full text-sm">
                     <thead>
                       <tr className="border-b text-left">
                         <th className="w-12 px-4 py-2 font-medium">#</th>

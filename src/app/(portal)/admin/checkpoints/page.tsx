@@ -159,7 +159,7 @@ export default async function CheckpointsPage({
             <EmptyState title="No teams" description="Nothing to show for this filter." />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[52rem] text-sm">
+              <table className="w-full min-w-[34rem] sm:min-w-full text-sm">
                 <thead>
                   <tr className="border-b text-left">
                     <th className="px-4 py-2 font-medium">Team</th>

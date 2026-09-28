@@ -19,11 +19,11 @@ export function StatCard({
 }) {
   return (
     <Card className={className}>
-      <CardContent className="p-5">
-        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
+      <CardContent className="p-4 sm:p-5">
+        <p className="text-[11px] sm:text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
         <p
           className={cn(
-            "mt-2 text-3xl font-semibold tracking-tight tabular-nums",
+            "mt-1.5 sm:mt-2 text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums",
             tone === "success" && "text-success",
             tone === "warning" && "text-warning",
             tone === "destructive" && "text-destructive",

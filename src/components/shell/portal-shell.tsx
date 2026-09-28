@@ -38,7 +38,7 @@ export function PortalShell({
           <div className="flex items-center gap-2">
             <Link
               href="/"
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground"
             >
               {SITE.name}
             </Link>

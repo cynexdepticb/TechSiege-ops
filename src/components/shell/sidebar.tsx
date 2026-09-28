@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogOut, Menu, X, ChevronRight } from "lucide-react";
 import { NavIcon } from "@/components/shell/nav-icon";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,17 @@ type Props = {
 export function Sidebar({ sections, actor }: Props) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
   const nav = (
     <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-4" aria-label="Modules">
@@ -84,23 +95,23 @@ export function Sidebar({ sections, actor }: Props) {
   return (
     <>
       {/* Mobile bar — volunteers scan on phones, so the nav must collapse. */}
-      <div className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur lg:hidden">
-        <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Open navigation">
+      <div className="sticky top-0 z-40 flex h-14 w-full shrink-0 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur lg:hidden">
+        <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Open navigation" className="touch-manipulation">
           <Menu />
         </Button>
-        <span className="font-semibold tracking-tight">TechSiege Ops</span>
-        <Badge variant="muted" className="ml-auto">
+        <span className="font-semibold tracking-tight text-foreground">TechSiege Ops</span>
+        <Badge variant="muted" className="ml-auto text-xs">
           {actor.roleLabel}
         </Badge>
       </div>
 
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} />
-          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col border-r border-border bg-card">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setOpen(false)} />
+          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col border-r border-border bg-card shadow-2xl">
             <div className="flex h-14 items-center justify-between border-b border-border px-4">
               <span className="font-semibold tracking-tight">TechSiege Ops</span>
-              <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close navigation">
+              <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close navigation" className="touch-manipulation">
                 <X />
               </Button>
             </div>
