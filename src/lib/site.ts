@@ -5,7 +5,7 @@ export const SITE = {
   shortName: "TechSiege",
   venue: "AIET, Mijar Campus — Auditorium",
   city: "Mangaluru",
-  supportEmail: process.env.SUPPORT_EMAIL ?? "ops@agentx.dev",
+  supportEmail: process.env.SUPPORT_EMAIL ?? "cynex.depticb@gmail.com",
   timezone: "Asia/Kolkata",
 } as const;
 

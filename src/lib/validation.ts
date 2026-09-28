@@ -307,8 +307,15 @@ export const checkinSchema = z
     } else if (!v.payload && !v.teamId) {
       ctx.addIssue({
         code: "custom",
-        message: "Scan a team QR code.",
+        message: "Provide a ticket code to scan or select a team from the board.",
         path: ["payload"],
+      });
+    }
+    if (v.payload && v.checkpoint && v.checkpoint !== "REGISTRATION") {
+      ctx.addIssue({
+        code: "custom",
+        message: "QR code scanning is only for registration check-in. Round 1, Round 2, Midnight, and Submission do not use QR scanning.",
+        path: ["checkpoint"],
       });
     }
   });

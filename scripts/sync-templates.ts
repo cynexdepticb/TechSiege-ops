@@ -24,42 +24,42 @@ const prisma = new PrismaClient({
 });
 
 const apply = process.argv.includes("--apply");
+const updateExisting = process.argv.includes("--update");
 
 async function main() {
-  const existing = await prisma.emailTemplate.findMany({ select: { key: true } });
-  const have = new Set(existing.map((t) => t.key));
+  const existing = await prisma.emailTemplate.findMany();
+  const have = new Map(existing.map((t) => [t.key, t]));
 
-  const missing = TEMPLATE_SEEDS.filter((t) => !have.has(t.key));
-  const kept = TEMPLATE_SEEDS.length - missing.length;
+  console.log(`\n  Checking ${TEMPLATE_SEEDS.length} seed templates against database...`);
 
-  console.log(`\n  ${kept}/${TEMPLATE_SEEDS.length} template(s) already present.`);
-
-  for (const t of missing) {
-    if (apply) {
-      await prisma.emailTemplate.create({ data: t });
-      console.log(`  + created  ${t.key.padEnd(26)} ${t.name}`);
+  for (const t of TEMPLATE_SEEDS) {
+    const current = have.get(t.key);
+    if (!current) {
+      if (apply || updateExisting) {
+        await prisma.emailTemplate.create({ data: t });
+        console.log(`  + created  ${t.key.padEnd(26)} ${t.name}`);
+      } else {
+        console.log(`  ? missing  ${t.key.padEnd(26)} ${t.name}`);
+      }
     } else {
-      console.log(`  ? missing  ${t.key.padEnd(26)} ${t.name}`);
+      if (updateExisting) {
+        await prisma.emailTemplate.update({
+          where: { key: t.key },
+          data: {
+            name: t.name,
+            type: t.type,
+            subject: t.subject,
+            body: t.body,
+          },
+        });
+        console.log(`  ✓ updated  ${t.key.padEnd(26)} ${t.name}`);
+      } else {
+        console.log(`  = present  ${t.key.padEnd(26)} ${t.name}`);
+      }
     }
   }
 
-  if (missing.length === 0) {
-    console.log("  Nothing to do.\n");
-    return;
-  }
-
-  // Also report templates an organiser added themselves, so an unexpected key is
-  // visible rather than silently ignored.
-  const orphans = [...have].filter((k) => !TEMPLATE_SEEDS.some((t) => t.key === k));
-  if (orphans.length) {
-    console.log(`\n  Not in TEMPLATE_SEEDS (left alone): ${orphans.join(", ")}`);
-  }
-
-  console.log(
-    apply
-      ? `\n  Inserted ${missing.length} template(s).\n`
-      : `\n  Dry run. Re-run with --apply to insert ${missing.length} template(s).\n`,
-  );
+  console.log("\n  Finished sync.\n");
 }
 
 main()

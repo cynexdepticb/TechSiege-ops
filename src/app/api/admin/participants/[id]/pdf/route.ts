@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { guard, fail } from "@/lib/http";
 import {
   ensureTeamTicketPdfs,
+  makeTicketId,
   readTicketPdf,
   renderParticipantTicketPdf,
   ticketMemberFilename,
@@ -50,7 +51,7 @@ export async function GET(
     } catch {
       // Fallback direct render
       pdfBuf = await renderParticipantTicketPdf({
-        ticketId: participant.ticketId || "TS26-DEMO01",
+        ticketId: participant.ticketId || makeTicketId(),
         qrToken: participant.qrToken || team.qrToken,
         participantName: participant.name,
         teamName: team.name,

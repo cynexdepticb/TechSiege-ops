@@ -15,12 +15,7 @@ export default async function CheckinPage() {
     <div className="p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Check-in scanner"
-        description="Scan a team's QR code at registration, mentor checkpoints or the submission desk."
-        actions={
-          <span className="text-xs text-muted-foreground">
-            Submission deadline {formatDateTime(settings.submissionDeadline)}
-          </span>
-        }
+        description="Scan attendee ticket QR codes or team passes to verify admission and check in participants."
       />
       <CheckinScanner actorName={actor.name} />
     </div>

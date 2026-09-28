@@ -44,7 +44,7 @@ export function SignInForm({ hasGoogle }: { hasGoogle: boolean }) {
           autoFocus
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@agentx.dev"
+          placeholder="organizer@techsiege.in"
         />
       </Field>
       <Field label="Password" htmlFor="password" required>

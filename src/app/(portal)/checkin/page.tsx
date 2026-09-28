@@ -32,7 +32,7 @@ export default async function VolunteerCheckinPage() {
     getSettings(),
     prisma.team.groupBy({ by: ["status"], _count: { _all: true } }),
     prisma.checkpointLog.findMany({
-      where: { scannedById: actor.id },
+      where: { scannedById: actor.id, checkpoint: "REGISTRATION" },
       orderBy: { createdAt: "desc" },
       take: 8,
       select: {
@@ -84,8 +84,7 @@ export default async function VolunteerCheckinPage() {
           <Tally label="Awaiting" value={pending} tone={pending > 0 ? "warning" : "muted"} />
         </div>
         <p className="text-center text-xs text-muted-foreground">
-          {registered} teams registered · submission deadline{" "}
-          {formatDateTime(settings.submissionDeadline)}
+          {registered} teams registered &middot; Official event check-in desk
         </p>
 
         <CheckinScanner actorName={actor.name} />
@@ -93,7 +92,7 @@ export default async function VolunteerCheckinPage() {
         <Card>
           <CardContent className="p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-medium">My recent scans</h2>
+              <h2 className="text-sm font-medium">My recent check-ins</h2>
               {mine.length > 0 ? (
                 <span className="text-xs text-muted-foreground">last {mine.length}</span>
               ) : null}
@@ -111,8 +110,8 @@ export default async function VolunteerCheckinPage() {
                       <span className="truncate text-muted-foreground">{m.team.name}</span>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <Badge variant="outline">
-                        {CHECKPOINTS.find((c) => c.key === m.checkpoint)?.short ?? m.checkpoint}
+                      <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">
+                        Admitted
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {relativeTime(m.createdAt)}

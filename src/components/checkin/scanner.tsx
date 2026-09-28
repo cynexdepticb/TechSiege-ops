@@ -20,13 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/primitives";
-import { Separator } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
-import { CHECKPOINT_LABEL } from "@/lib/authz-lite";
 import { toast } from "sonner";
-
-const CHECKPOINTS = ["REGISTRATION", "ROUND_1", "ROUND_2", "MIDNIGHT", "SUBMISSION"] as const;
-type Checkpoint = (typeof CHECKPOINTS)[number];
 
 type Participant = {
   id: string;
@@ -34,6 +29,8 @@ type Participant = {
   email: string;
   role: string;
   ticketId?: string | null;
+  checkedIn?: boolean;
+  checkedInAt?: string | null;
 };
 
 type Result =
@@ -51,7 +48,6 @@ type Result =
         _count: { participants: number };
       };
       matchedParticipant?: Participant;
-      checkpoint: string;
       duplicate: boolean;
       message?: string;
     }
@@ -59,7 +55,6 @@ type Result =
 
 export function CheckinScanner({ actorName }: { actorName: string }) {
   const router = useRouter();
-  const [checkpoint, setCheckpoint] = useState<Checkpoint>("REGISTRATION");
   const [manual, setManual] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
@@ -76,20 +71,20 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
       const cleanPayload = payload.trim();
       if (!cleanPayload || busy) return;
       setBusy(true);
-      setResult(null);
       try {
         const res = await fetch("/api/admin/checkin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ payload: cleanPayload, checkpoint }),
+          body: JSON.stringify({ payload: cleanPayload }),
         });
         const data = await res.json();
         if (!res.ok || !data.ok) {
           setResult({
             kind: "error",
             reason: data.reason ?? "ERROR",
-            message: data.error ?? "Scan failed.",
+            message: data.error ?? "Ticket scan failed. Please check the code and try again.",
           });
+          toast.error(data.error ?? "Check-in failed.");
           return;
         }
 
@@ -97,30 +92,38 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
           kind: "ok",
           team: data.team,
           matchedParticipant: data.matchedParticipant,
-          checkpoint: data.checkpoint || checkpoint,
           duplicate: Boolean(data.duplicate),
           message: data.message,
         });
 
         if (data.duplicate) {
-          toast.warning("Already checked in", {
-            description: `${data.team.code} has already logged checkpoint ${data.checkpoint || checkpoint}.`,
-          });
+          toast.warning(
+            data.matchedParticipant
+              ? `${data.matchedParticipant.name} is already checked in`
+              : "Already checked in",
+            {
+              description: data.message,
+            },
+          );
         } else {
-          toast.success(`${data.team.code} checked in!`, {
-            description: data.matchedParticipant
-              ? `${data.matchedParticipant.name} admitted for ${data.team.name}`
-              : `${data.team.name} admitted`,
-          });
+          toast.success(
+            data.matchedParticipant
+              ? `${data.matchedParticipant.name} admitted!`
+              : `${data.team.name} admitted!`,
+            {
+              description: data.message || "Admission verified and checked in.",
+            },
+          );
         }
         router.refresh();
       } catch {
         setResult({ kind: "error", reason: "NETWORK", message: "Network error. Try again." });
+        toast.error("Network error during check-in.");
       } finally {
         setBusy(false);
       }
     },
-    [busy, checkpoint, router],
+    [busy, router],
   );
 
   const stopCamera = useCallback(() => {
@@ -166,7 +169,7 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
     }
   }, [stopCamera]);
 
-  // Robust client-side QR frame decoder using jsQR
+  // Client-side QR frame decoder using jsQR (Continuous scanning - no manual restart needed)
   useEffect(() => {
     if (!scanning) return;
     let rafId = 0;
@@ -189,11 +192,9 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
 
         try {
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          // Try standard scan
           let code = jsQR(imageData.data, imageData.width, imageData.height, {
             inversionAttempts: "dontInvert",
           });
-          // If not found, try inverted
           if (!code) {
             code = jsQR(imageData.data, imageData.width, imageData.height, {
               inversionAttempts: "attemptBoth",
@@ -203,7 +204,8 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
           if (code && code.data) {
             const rawVal = code.data.trim();
             const now = Date.now();
-            if (lastScan.current.value === rawVal && now - lastScan.current.at < 2500) {
+            // Debounce: don't re-submit identical QR code within 3 seconds
+            if (lastScan.current.value === rawVal && now - lastScan.current.at < 3000) {
               rafId = requestAnimationFrame(scanFrame);
               return;
             }
@@ -223,9 +225,8 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
               osc.stop(audioCtx.currentTime + 0.15);
             } catch {}
 
+            // Submit check-in — keep camera scanning for the next attendee in line!
             void submit(rawVal);
-            stopCamera();
-            return;
           }
         } catch {
           /* ignore frame capture error and keep scanning */
@@ -240,7 +241,7 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
       cancelled = true;
       cancelAnimationFrame(rafId);
     };
-  }, [scanning, submit, stopCamera]);
+  }, [scanning, submit]);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
@@ -282,13 +283,13 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
       <Card className="border-border">
         <CardHeader>
           <CardTitle className="text-base font-semibold flex items-center justify-between">
-            <span>Ticket Scanner &amp; Check-in</span>
+            <span>Event Check-in Scanner</span>
             <Badge variant="outline" className="text-xs font-normal">
-              Logged as: {actorName}
+              Staff: {actorName}
             </Badge>
           </CardTitle>
           <CardDescription className="text-xs">
-            Scan attendee ticket PDF QR codes, upload a ticket image, or type any Ticket ID / Team Code.
+            Scan attendee ticket PDF QR code, upload an image, or type Ticket ID / Team Code.
           </CardDescription>
         </CardHeader>
 
@@ -298,15 +299,15 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
               <TabsTrigger value="camera" className="text-xs flex items-center gap-1.5">
                 <Camera className="size-3.5" /> Camera
               </TabsTrigger>
-              <TabsTrigger value="upload" className="text-xs flex items-center gap-1.5">
-                <FileImage className="size-3.5" /> Upload QR
-              </TabsTrigger>
               <TabsTrigger value="manual" className="text-xs flex items-center gap-1.5">
                 <Keyboard className="size-3.5" /> Type Code
               </TabsTrigger>
+              <TabsTrigger value="upload" className="text-xs flex items-center gap-1.5">
+                <FileImage className="size-3.5" /> Upload Image
+              </TabsTrigger>
             </TabsList>
 
-            {/* Live Camera Scanner */}
+            {/* Live Continuous Camera Scanner */}
             <TabsContent value="camera" className="mt-3">
               <div className="relative aspect-4/3 overflow-hidden rounded-lg border border-border bg-black flex items-center justify-center">
                 <video
@@ -324,7 +325,7 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                     <div>
                       <p className="text-sm font-medium text-foreground">Live Camera Scanner</p>
                       <p className="text-xs text-muted-foreground mt-0.5 max-w-xs">
-                        Point your camera at the QR code on any member&rsquo;s admission ticket PDF or mobile pass.
+                        Point camera at attendee ticket QR code. Scans instantly and admits attendee.
                       </p>
                     </div>
                     {cameraError ? (
@@ -343,9 +344,14 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                       <div className="relative size-56 sm:size-64 rounded-xl border-2 border-primary/80 bg-primary/5 shadow-[0_0_24px_rgba(34,211,238,0.25)] flex items-center justify-center">
                         <div className="absolute inset-x-2 top-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse" />
                         <span className="text-[10px] uppercase tracking-wider text-cyan-400 font-bold bg-black/60 px-2 py-0.5 rounded border border-cyan-800/40">
-                          Align QR code here
+                          Align ticket QR code
                         </span>
                       </div>
+                    </div>
+
+                    <div className="absolute top-3 left-3 bg-black/70 px-2.5 py-1 rounded-md text-[11px] text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-emerald-400 animate-ping" />
+                      Live scanning active
                     </div>
 
                     <Button
@@ -359,6 +365,40 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                   </>
                 )}
               </div>
+            </TabsContent>
+
+            {/* Manual Code Input */}
+            <TabsContent value="manual" className="mt-3">
+              <form
+                className="space-y-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void submit(manual);
+                  setManual("");
+                }}
+              >
+                <div className="space-y-1.5">
+                  <Label htmlFor="team-code" className="text-xs text-muted-foreground">
+                    Ticket ID, Team Code, or Attendee Email
+                  </Label>
+                  <Input
+                    id="team-code"
+                    value={manual}
+                    onChange={(e) => setManual(e.target.value)}
+                    placeholder="TS26-XXXXXX, AGX-XXXX, or attendee@example.com"
+                    autoComplete="off"
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Accepts individual Ticket ID (e.g. TS26-BJKFVJ), Team Code (e.g. AGX-RUEB), or Member Email.
+                  </p>
+                </div>
+
+                <Button type="submit" disabled={busy || !manual.trim()} className="w-full text-xs h-9">
+                  {busy ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <CheckCircle2 className="size-4 mr-1.5" />}
+                  Check In Attendee
+                </Button>
+              </form>
             </TabsContent>
 
             {/* Upload QR Image */}
@@ -385,98 +425,39 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                 <div className="rounded-full bg-secondary p-3 text-muted-foreground mb-2">
                   <Upload className="size-6" />
                 </div>
-                <p className="text-sm font-medium text-foreground">Drop ticket screenshot or click to upload</p>
+                <p className="text-sm font-medium text-foreground">Drop ticket QR image or click to upload</p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                  Upload an image of the ticket QR code (PNG, JPG, WEBP) to decode and check in instantly.
+                  Upload an image of the ticket QR code (PNG, JPG, WEBP) to check in instantly.
                 </p>
                 <Button variant="outline" size="sm" className="mt-3 text-xs">
                   Choose Image File
                 </Button>
               </div>
             </TabsContent>
-
-            {/* Manual Code Input */}
-            <TabsContent value="manual" className="mt-3">
-              <form
-                className="space-y-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void submit(manual);
-                  setManual("");
-                }}
-              >
-                <div className="space-y-1.5">
-                  <Label htmlFor="team-code" className="text-xs text-muted-foreground">
-                    Ticket ID, Team Code, or Attendee Email
-                  </Label>
-                  <Input
-                    id="team-code"
-                    value={manual}
-                    onChange={(e) => setManual(e.target.value)}
-                    placeholder="TS26-XXXXXX, AGX-XXXX, or email"
-                    autoComplete="off"
-                    className="font-mono text-sm"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Accepts Ticket ID (e.g. TS26-BJKFVJ), Team Code (e.g. AGX-RUEB), or Leader/Member Email.
-                  </p>
-                </div>
-
-                <Button type="submit" disabled={busy || !manual.trim()} className="w-full text-xs h-9">
-                  {busy ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <CheckCircle2 className="size-4 mr-1.5" />}
-                  Check In Attendee
-                </Button>
-              </form>
-            </TabsContent>
           </Tabs>
-
-          <Separator className="my-3" />
-
-          {/* Checkpoint selector buttons */}
-          <div>
-            <div className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">
-              Active Checkpoint Station
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {CHECKPOINTS.map((cp) => (
-                <button
-                  key={cp}
-                  type="button"
-                  onClick={() => setCheckpoint(cp)}
-                  aria-pressed={checkpoint === cp}
-                  className={cn(
-                    "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors text-left",
-                    checkpoint === cp
-                      ? "border-primary bg-primary/10 text-primary shadow-sm"
-                      : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
-                  )}
-                >
-                  {CHECKPOINT_LABEL[cp]}
-                </button>
-              ))}
-            </div>
-          </div>
         </CardContent>
       </Card>
 
       {/* Result Card */}
       <Card className="border-border">
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Check-in Verification Result</CardTitle>
-          <CardDescription className="text-xs">Live desk verification status and admitted team details.</CardDescription>
+          <CardTitle className="text-base font-semibold">Admission Verification Result</CardTitle>
+          <CardDescription className="text-xs">
+            Live desk check-in confirmation and attendee details.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {busy ? (
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-sm text-muted-foreground">
               <Loader2 className="size-8 animate-spin text-primary" />
-              <span>Verifying ticket &amp; logging checkpoint…</span>
+              <span>Verifying ticket &amp; checking in…</span>
             </div>
           ) : !result ? (
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-sm text-muted-foreground">
               <ScanLine className="size-8 opacity-40" />
-              <p className="font-medium text-foreground">Waiting for Scan</p>
+              <p className="font-medium text-foreground">Ready to Scan</p>
               <p className="text-xs text-muted-foreground max-w-xs">
-                Scan any ticket QR code, upload an image, or type a code to verify admission.
+                Scan attendee ticket QR code, upload an image, or type code to check in.
               </p>
             </div>
           ) : result.kind === "ok" ? (
@@ -492,24 +473,34 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {result.duplicate ? (
-                    <XCircle className="size-5 text-amber-400 shrink-0" />
+                    <UserCheck className="size-5 text-amber-400 shrink-0" />
                   ) : (
                     <CheckCircle2 className="size-5 text-emerald-400 shrink-0" />
                   )}
                   <span className="font-bold text-sm text-foreground">
-                    {result.duplicate ? "Already Checked In" : "Admission Verified & Logged"}
+                    {result.duplicate ? "Already Checked In" : "Checked In & Admitted"}
                   </span>
                 </div>
-                <Badge variant={result.duplicate ? "outline" : "default"}>
-                  {CHECKPOINT_LABEL[result.checkpoint as Checkpoint] || result.checkpoint}
+                <Badge
+                  variant={result.duplicate ? "outline" : "default"}
+                  className={result.duplicate ? "border-amber-400 text-amber-300" : "bg-emerald-600 text-white"}
+                >
+                  {result.duplicate ? "Duplicate Scan" : "Admitted"}
                 </Badge>
               </div>
 
               {/* Matched Participant Details if individual ticket was scanned */}
               {result.matchedParticipant ? (
                 <div className="rounded-md border border-cyan-800/40 bg-cyan-950/40 p-3 text-xs space-y-1">
-                  <div className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">
-                    <UserCheck className="size-3.5" /> Admitted Attendee
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">
+                      <UserCheck className="size-3.5" /> Admitted Attendee
+                    </div>
+                    {result.matchedParticipant.checkedIn ? (
+                      <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.2 rounded">
+                        {result.duplicate ? "Previously Checked In" : "Checked In Now"}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="text-sm font-bold text-white flex items-center gap-2">
                     <span>{result.matchedParticipant.name}</span>
@@ -547,10 +538,48 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                 <div className="flex items-baseline justify-between">
                   <span className="text-muted-foreground">Payment:</span>
                   <Badge variant={result.team.paymentStatus === "PAID" ? "default" : "secondary"}>
-                    {result.team.paymentStatus}
+                    {result.team.paymentStatus === "PAID" ? "Verified" : result.team.paymentStatus}
                   </Badge>
                 </div>
               </div>
+
+              {/* Member Attendance Roster */}
+              {result.team.participants && result.team.participants.length > 0 ? (
+                <div className="border-t border-border/40 pt-2 space-y-1">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                    <span>Team Attendance</span>
+                    <span>
+                      {result.team.participants.filter((p) => p.checkedIn).length} / {result.team.participants.length} present
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {result.team.participants.map((p) => (
+                      <div
+                        key={p.id}
+                        className={`flex items-center justify-between rounded px-2 py-1 text-[11px] ${
+                          p.checkedIn
+                            ? "bg-emerald-950/30 text-emerald-300 border border-emerald-800/30"
+                            : "bg-muted/20 text-muted-foreground"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          {p.checkedIn ? (
+                            <CheckCircle2 className="size-3 text-emerald-400" />
+                          ) : (
+                            <span className="size-2 rounded-full bg-muted-foreground/30 inline-block ml-0.5" />
+                          )}
+                          <span className={p.checkedIn ? "font-medium text-foreground" : ""}>
+                            {p.name}
+                          </span>
+                        </div>
+                        <span className="font-mono text-[10px] opacity-75">
+                          {p.ticketId || (p.checkedIn ? "Checked in" : "Awaiting")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {result.message ? (
                 <p className="text-xs text-muted-foreground pt-1 border-t border-border/40">
@@ -558,14 +587,11 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                 </p>
               ) : null}
 
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-xs mt-2"
-                onClick={() => setResult(null)}
-              >
-                Scan Next Attendee
-              </Button>
+              <div className="pt-2 text-center">
+                <span className="text-[11px] text-muted-foreground">
+                  Scanner is active — present next attendee ticket to scan.
+                </span>
+              </div>
             </div>
           ) : (
             <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 space-y-2" role="alert">
@@ -574,14 +600,11 @@ export function CheckinScanner({ actorName }: { actorName: string }) {
                 <span className="font-bold text-sm">Ticket Not Found / Invalid</span>
               </div>
               <p className="text-xs text-destructive-foreground">{result.message}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-xs mt-2 border-destructive/30"
-                onClick={() => setResult(null)}
-              >
-                Try Again
-              </Button>
+              <div className="pt-2 text-center">
+                <span className="text-[11px] text-muted-foreground">
+                  Scanner is active — present next attendee ticket to scan.
+                </span>
+              </div>
             </div>
           )}
         </CardContent>

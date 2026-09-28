@@ -278,7 +278,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                                 memberCount={t._count.participants}
                                 blockers={[
                                   ...(t._count.checkpoints > 0
-                                    ? [`${t._count.checkpoints} check-in scan(s)`]
+                                    ? [`${t._count.checkpoints} checkpoint log(s)`]
                                     : []),
                                   ...(t._count.scores > 0
                                     ? [`${t._count.scores} recorded score(s)`]

@@ -332,13 +332,13 @@ export function RegistrationForm({
           </div>
           <p className="mt-5 text-sm text-muted-foreground">
             {done.undelivered.length === 0
-              ? `A confirmation email with your team ID and check-in QR code is on its way to all ${done.recipients} member${done.recipients === 1 ? "" : "s"}.`
+              ? `A registration confirmation email with your team ID is on its way to all ${done.recipients} member${done.recipients === 1 ? "" : "s"}. Once your payment is verified, individual PDF tickets with check-in QR codes will be sent.`
               : done.emailed > 0
                 ? `Confirmation emails reached ${done.emailed} of ${done.recipients} members. We could not reach ${done.undelivered.length}, so please check with your team lead — and quote your team ID if anyone asks.`
                 : `We could not send the confirmation emails. Your registration is safe and your team ID above is valid — the organisers can send it to you, so quote your team ID if asked.`}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Keep the team ID safe — you&rsquo;ll need it at check-in, at both mentor checkpoints and at submission.
+            Keep your team ID safe — you&rsquo;ll need it for check-in on event day.
           </p>
         </CardContent>
       </Card>
@@ -382,7 +382,7 @@ export function RegistrationForm({
                 <Field label="Team lead's name" htmlFor="t-cname" required error={errors["team.contactName"]}>
                   <Input id="t-cname" value={team.contactName} onChange={(e) => setField("contactName", e.target.value)} maxLength={100} />
                 </Field>
-                <Field label="Team lead's email" htmlFor="t-cemail" required error={errors["team.contactEmail"]} hint="Confirmations and QR codes go here.">
+                <Field label="Team lead's email" htmlFor="t-cemail" required error={errors["team.contactEmail"]} hint="Registration confirmations and event tickets are sent here.">
                   <Input id="t-cemail" type="email" value={team.contactEmail} onChange={(e) => setField("contactEmail", e.target.value)} aria-invalid={Boolean(errors["team.contactEmail"])} />
                 </Field>
               </div>
@@ -587,7 +587,7 @@ export function RegistrationForm({
 
               <p className="text-xs text-muted-foreground">
                 By submitting you confirm everyone listed has agreed to take part, and that the work you
-                submit is your own. You&rsquo;ll get a team ID and a check-in QR code by email.
+                submit is your own. You&rsquo;ll receive a registration confirmation with your team ID by email. Individual admission tickets with QR codes will follow once payment is verified.
               </p>
             </section>
           ) : null}

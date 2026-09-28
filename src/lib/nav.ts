@@ -32,7 +32,7 @@ export const NAV: { group: string; items: NavItem[] }[] = [
         icon: "ScanLine",
         roles: ["SUPER_ADMIN", "TEAM_LEAD", "VOLUNTEER"],
         module: "checkin",
-        description: "Live check-in and checkpoint scanning",
+        description: "Live attendee check-in and admission",
       },
     ],
   },

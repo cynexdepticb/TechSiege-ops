@@ -339,6 +339,9 @@ model Participant {
   pdfFilename    String?
   pdfPath        String?
   pdfGeneratedAt DateTime?
+  checkedIn      Boolean         @default(false)
+  checkedInAt    DateTime?
+  checkedInBy    String?
   createdAt      DateTime        @default(now())
 
   team Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
@@ -346,6 +349,7 @@ model Participant {
   @@index([teamId])
   @@index([ticketId])
   @@index([qrToken])
+  @@index([checkedIn])
   @@map("participants")
 }
 

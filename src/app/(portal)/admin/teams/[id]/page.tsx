@@ -19,7 +19,8 @@ import { teamCheckinUrl } from "@/lib/registration";
 import { siteOrigin } from "@/lib/site";
 import { getSettings } from "@/lib/settings";
 import { QrBadge } from "@/components/teams/qr-badge";
-import { ArrowLeft, FileDown } from "lucide-react";
+import { MemberQrCards } from "@/components/teams/member-qr-cards";
+import { ArrowLeft, FileDown, ExternalLink } from "lucide-react";
 
 export const metadata: Metadata = { title: "Team" };
 export const dynamic = "force-dynamic";
@@ -71,7 +72,7 @@ export default async function TeamDetailPage({
   const undeletableBecause = [
     ...(team.scores.length > 0 ? [`${team.scores.length} recorded score(s)`] : []),
     ...(team.submission ? ["a submitted project"] : []),
-    ...(team.checkpoints.length > 0 ? [`${team.checkpoints.length} check-in scan(s)`] : []),
+    ...(team.checkpoints.length > 0 ? [`${team.checkpoints.length} checkpoint log(s)`] : []),
   ];
 
   return (
@@ -144,10 +145,26 @@ export default async function TeamDetailPage({
                     <div className="font-medium flex items-center gap-2">
                       <span>{p.name}</span>
                       {p.ticketId ? (
-                        <span className="font-mono text-xs text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-1.5 py-0.5 rounded">
+                        <Link
+                          href={`/ticket/${p.ticketId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-xs text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-1.5 py-0.5 rounded hover:bg-cyan-900/60 transition inline-flex items-center gap-1"
+                          title="Open attendee ticket"
+                        >
                           {p.ticketId}
-                        </span>
+                          <ExternalLink className="size-2.5 opacity-70" />
+                        </Link>
                       ) : null}
+                      {p.checkedIn ? (
+                        <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">
+                          Checked in
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground bg-muted/30 border border-border/50 px-1.5 py-0.5 rounded">
+                          Not checked in
+                        </span>
+                      )}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">
                       {p.email}
@@ -159,12 +176,22 @@ export default async function TeamDetailPage({
                       <span className="text-xs text-muted-foreground">{p.year}</span>
                     ) : null}
                     {p.role === "LEADER" ? <Badge>Lead</Badge> : null}
+                    <Link
+                      href={`/ticket/${p.ticketId || p.qrToken}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded bg-secondary/80 px-2 py-1 text-xs font-medium text-foreground hover:bg-secondary border border-border"
+                      title="View individual QR code pass"
+                    >
+                      <ExternalLink className="size-3" /> Pass
+                    </Link>
                     {team.paymentStatus === "PAID" ? (
                       <a
                         href={`/api/admin/participants/${p.id}/pdf`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded bg-secondary/80 px-2 py-1 text-xs font-medium text-foreground hover:bg-secondary border border-border"
+                        className="inline-flex items-center gap-1 rounded bg-cyan-950/40 px-2 py-1 text-xs font-medium text-cyan-300 hover:bg-cyan-950/70 border border-cyan-800/50"
+                        title="Download individual PDF ticket"
                       >
                         <FileDown className="size-3.5" /> PDF
                       </a>
@@ -317,19 +344,23 @@ export default async function TeamDetailPage({
             />
           ) : null}
 
-          {/* check-in QR */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Check-in code</CardTitle>
-              <CardDescription>Scan this at the registration desk</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center gap-3">
-              <QrBadge value={checkinUrl} />
-              <p className="text-center font-mono text-xs text-muted-foreground">
-                {checkinUrl}
-              </p>
-            </CardContent>
-          </Card>
+          {/* individual participant check-in QR codes */}
+          <MemberQrCards
+            participants={team.participants.map((p) => ({
+              id: p.id,
+              name: p.name,
+              role: p.role,
+              ticketId: p.ticketId,
+              qrToken: p.qrToken,
+              checkedIn: p.checkedIn,
+              checkedInAt: p.checkedInAt?.toISOString() ?? null,
+              pdfFilename: p.pdfFilename,
+            }))}
+            teamCode={team.code}
+            teamName={team.name}
+            teamQrToken={team.qrToken}
+            origin={siteOrigin()}
+          />
 
           {/* checkpoints */}
           <Card>

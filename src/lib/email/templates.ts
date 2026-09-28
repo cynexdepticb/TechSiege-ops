@@ -23,29 +23,27 @@ export const TEMPLATE_SEEDS: TemplateSeed[] = [
     key: "registration_confirmation",
     name: "Registration confirmation",
     type: "CONFIRMATION",
-    subject: "You're registered — team {{teamCode}} · {{eventName}}",
+    subject: "Registration Received — Team {{teamCode}} · {{eventName}}",
     body: `Hi {{leaderName}},
 
-Team {{teamName}} is registered for {{eventName}} in the {{track}} track.
+Team {{teamName}} has been registered for {{eventName}} in the {{track}} track.
 
-Team ID: {{teamCode}}
-College: {{college}}
-Members: {{memberCount}}
-Venue: {{venue}}
+Team Details:
+- Team Name: {{teamName}}
+- Team ID: {{teamCode}}
+- Track: {{track}}
+- College: {{college}}
+- Members: {{memberCount}}
 
-Keep this email — you'll need the team ID for check-in, mentor checkpoints and
-submission on event day.
+Payment & Admission:
+Your registration is pending payment verification. Once payment is confirmed by the operations team, individual PDF admission tickets with unique check-in QR codes will be sent to your email.
 
-Next steps:
-1. Pay the entry fee using the details in your registration email.
-2. Attend the pre-event orientation (details in the checklist email).
-3. Bring a laptop with your toolchain ready to go.
+Event Details:
+- Event: {{eventName}}
+- Dates: 30–31 October 2026
+- Venue: {{venue}}
 
-We'll email you separately once your payment is confirmed, and that email
-carries your check-in QR code.
-
-See you on the floor,
-The {{eventName}} team`,
+The {{eventName}} Team`,
   },
   {
     key: "payment_acknowledgement",
@@ -78,26 +76,25 @@ The {{eventName}} Operations Team`,
     key: "ticket_issued",
     name: "Ticket & check-in QR",
     type: "TICKET_ISSUED",
-    subject: "Your {{eventName}} ticket — team {{teamCode}}",
+    subject: "Admission Tickets — Team {{teamCode}} · {{eventName}}",
     body: `Hi {{leaderName}},
 
-Here's everything you need for event day. Your check-in QR code is attached to
-this email as an image, and the same code is always available at:
-{{ticketUrl}}
+Here are the official admission tickets for team {{teamName}} ({{teamCode}}).
 
-Team ID: {{teamCode}}
-Track: {{track}}
-College: {{college}}
-Members: {{memberCount}}
-Venue: {{venue}}
-Check-in opens: {{eventDate}}
+Attached to this email are the individual PDF admission tickets for each team member. Each PDF contains that member's unique Ticket ID and check-in QR code.
 
-On the day:
-1. Open the attached code on your phone, or bookmark the link above.
-2. Report to the registration desk — arrive 30 minutes early for badges.
-3. A volunteer scans your code once per checkpoint, so keep your phone charged.
+Event Details:
+- Event: {{eventName}}
+- Dates: 30–31 October 2026
+- Venue: {{venue}}
+- Check-in Time: 8:30 AM
 
-— The {{eventName}} team`,
+Instructions:
+1. Share each individual PDF ticket with the corresponding team member.
+2. Present the ticket QR code at the check-in desk upon arrival.
+3. Bring a valid college ID card.
+
+The {{eventName}} Operations Team`,
   },
   {
     key: "approval_confirmation",
@@ -108,11 +105,13 @@ On the day:
 
 Team {{teamName}} has been approved for the {{track}} track at {{eventName}}.
 
-Team ID: {{teamCode}}
-Track: {{track}}
-Members: {{memberCount}}
+Team Details:
+- Team Name: {{teamName}}
+- Team ID: {{teamCode}}
+- Track: {{track}}
+- Members: {{memberCount}}
 
-Check-in opens {{eventDate}} at {{venue}}. Please arrive 30 minutes early for
+Check-in opens 8:30 AM on {{eventDate}} at {{venue}}. Please arrive early for
 verification and badge collection.
 
 — The {{eventName}} team`,
@@ -126,11 +125,10 @@ verification and badge collection.
 
 {{eventName}} is almost here. Please confirm the following for team {{teamCode}}:
 
-1. Every member has registered on the portal.
-2. Your repository is set up and a README is committed.
-3. External API keys and model access are pre-verified.
-4. One laptop per member, chargers and extension leads packed.
-5. A 2-3 minute demo script is drafted (you'll need it for submission).
+1. Every team member has their admission ticket PDF (digital or printed).
+2. All members have valid college ID cards.
+3. Bring laptops, chargers, and extension leads.
+4. Your repository is initialized and ready.
 
 Venue: {{venue}}
 Submission deadline: {{deadline}}
@@ -159,7 +157,7 @@ Bring a laptop — we'll be building against real tools, not slides.
 
 This is the {{checkpoint}} checkpoint for team {{teamCode}}.
 
-A mentor will scan your QR code and review your progress. Have your repo, a
+A mentor will review your progress. Have your repo, a
 short demo and your current agent architecture ready to walk through.
 
 Deadline: {{deadline}}

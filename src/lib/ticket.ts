@@ -47,6 +47,11 @@ export function teamTicketUrl(origin: string, token: string): string {
   return `${origin.replace(/\/$/, "")}/ticket/${token}`;
 }
 
+/** Public, unauthenticated page for an individual participant's admission pass. */
+export function participantTicketUrl(origin: string, tokenOrTicketId: string): string {
+  return `${origin.replace(/\/$/, "")}/ticket/${tokenOrTicketId}`;
+}
+
 export function getTicketStorageDir(teamId: string): string {
   return path.join(process.cwd(), "data", "tickets", teamId);
 }
@@ -396,6 +401,9 @@ export type TeamMemberTicketResult = {
   filename: string;
   path: string;
   buffer: Buffer;
+  checkedIn: boolean;
+  checkedInAt: Date | null;
+  checkedInBy: string | null;
 };
 
 /**
@@ -462,6 +470,9 @@ export async function ensureTeamTicketPdfs(teamId: string): Promise<TeamMemberTi
       filename,
       path: relPath,
       buffer: pdfBuf,
+      checkedIn: p.checkedIn,
+      checkedInAt: p.checkedInAt,
+      checkedInBy: p.checkedInBy,
     });
   }
 

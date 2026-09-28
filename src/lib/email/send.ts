@@ -5,7 +5,7 @@ import { renderTemplate, type TemplateVars } from "@/lib/email/templates";
 import { SITE } from "@/lib/site";
 import type { CommStatus, CommType } from "@/generated/prisma/enums";
 
-const FROM = process.env.EMAIL_FROM ?? "TechSiege <no-reply@example.com>";
+const FROM = process.env.EMAIL_FROM ?? "TechSiege <cynex.depticb@gmail.com>";
 
 /**
  * `smtp` sends for real over SMTP; `console` is the no-credentials fallback that

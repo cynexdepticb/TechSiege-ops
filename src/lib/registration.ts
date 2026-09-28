@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { REGISTRATION } from "@/lib/constants";
-import { teamTicketUrl } from "@/lib/ticket";
+import { teamTicketUrl, makeTicketId } from "@/lib/ticket";
 
 /** Human-friendly, unambiguous team code: no O/0/I/1. */
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -144,6 +144,8 @@ export async function createTeamAndMembers(input: {
           year: m.year,
           role: m.isLeader ? ("LEADER" as const) : ("MEMBER" as const),
           teamId: created.id,
+          ticketId: makeTicketId(),
+          qrToken: `TECHSIEGE:TICKET:${randomUUID()}`,
         })),
       });
 
