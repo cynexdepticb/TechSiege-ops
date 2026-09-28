@@ -22,6 +22,7 @@ export function Sidebar({ sections, actor }: Props) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
     if (open) {
       document.body.style.overflow = "hidden";
     } else {
