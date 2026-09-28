@@ -48,7 +48,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
  *  (prisma/seed.ts). Lives in src/lib/tracks.ts so the live registration route
  *  resolves tracks the same way this import does; verified against the database
  *  at startup, and an unmapped id is a hard error, never a silent skip. */
-const { TRACK_MAP } = await import("../src/lib/tracks");
+import { TRACK_MAP } from "../src/lib/tracks";
 
 /** Seeded marketing rows are named "[demo] Team N". They exist to populate the
  *  marketing demo, and would otherwise show up as real entrants in the ops
